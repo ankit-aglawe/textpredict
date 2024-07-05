@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "textpredict"
-version = "0.1.0"
+version = "0.1.2"
 description = "A Python package for text classification using transformer models."
 authors = ["Ankit Aglawe <aglawe.ankit@gmail.com>"]
 license = "MIT"
@@ -12,14 +12,14 @@ keywords = ["text classification", "emotion classification", "sentiment analysis
 
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 torch = "^1.9.0"
 transformers = "^4.9.0"
 datasets = "^1.11.0"
 click = "^8.0.1"
 fastapi = "^0.68.0"
 uvicorn = "^0.15.0"
-scikit-learn = "^0.24.2"
+scikit-learn = "^1.5.1"
 optuna = "^2.9.1"
 matplotlib = "^3.4.3"
 
