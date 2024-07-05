@@ -70,8 +70,10 @@ def load_model_from_directory(model_dir: str, task: str):
     try:
         logger.info(f"Loading model from directory {model_dir} for task {task}")
 
-        model = AutoModelForSequenceClassification.from_pretrained(model_dir)
-        tokenizer = AutoTokenizer.from_pretrained(model_dir)
+        model = AutoModelForSequenceClassification.from_pretrained(  # noqa: F841
+            model_dir
+        )
+        tokenizer = AutoTokenizer.from_pretrained(model_dir)  # noqa: F841
 
         model_class_mapping = {
             "sentiment": SentimentModel,
@@ -83,7 +85,7 @@ def load_model_from_directory(model_dir: str, task: str):
         if not model_class:
             raise ValueError(f"No model class found for task {task}")
 
-        return model_class(model_name=model_dir)
+        return model_class(model_name=model_dir, model=model, tokenizer=tokenizer)
     except Exception as e:
         log_and_raise(
             RuntimeError, f"Error loading model from directory for task {task}: {e}"

@@ -118,6 +118,15 @@ class TextPredict:
             model_pipeline = self.models[task]
             model = model_pipeline.model
             tokenizer = model_pipeline.tokenizer
+
+            # Check if number of classes match
+            num_labels = model.config.num_labels
+            unique_labels = len(set(training_data["label"]))
+            if num_labels != unique_labels:
+                raise ValueError(
+                    f"Mismatch in number of classes: Model expects {num_labels}, but dataset has {unique_labels} unique labels."
+                )
+
             fine_tune_model(
                 model, tokenizer, training_data, eval_data, output_dir, **kwargs
             )

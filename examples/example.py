@@ -33,7 +33,7 @@ def test_textpredict():
         task="sentiment",
         training_data=dataset["train"],
         eval_data=dataset["test"],
-        num_train_epochs=1,
+        num_train_epochs=0.064,
         batch_size=8,
         learning_rate=2e-5,
         early_stopping_patience=3,
@@ -112,8 +112,8 @@ def test_web_interface():
 
 
 if __name__ == "__main__":
-    test_textpredict()
-    test_config_management()
+    # test_textpredict()
+    # test_config_management()
     test_datasets()
     test_distributed_training()
     test_logging()

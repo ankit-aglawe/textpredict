@@ -6,7 +6,14 @@ logger = get_logger(__name__)
 
 
 class BaseModel:
-    def __init__(self, model_name: str, task: str, multi_label: bool = False):
+    def __init__(
+        self,
+        model_name: str,
+        task: str,
+        model=None,
+        tokenizer=None,
+        multi_label: bool = False,
+    ):
         """
         Initialize the base model with the specified parameters.
 
@@ -22,9 +29,17 @@ class BaseModel:
 
             logger.info(f"Initializing {task} model: {model_name}")
 
-            self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.pipeline = pipeline(task, model=self.model, tokenizer=self.tokenizer)
+            if model and tokenizer:
+                self.model = model
+                self.tokenizer = tokenizer
+            else:
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    model_name
+                )
+                self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                self.pipeline = pipeline(
+                    task, model=self.model, tokenizer=self.tokenizer
+                )
 
             # GPU setup
             # if torch.cuda.is_available() and torch.cuda.device_count() > 0:
