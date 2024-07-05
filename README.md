@@ -1,30 +1,33 @@
 # TextPredict
 
-TextPredict is a Python package for text classification tasks using transformer models. It supports various tasks such as sentiment analysis, emotion detection, and zero-shot classification. The package allows for easy fine-tuning and evaluation of models.
+[![python](https://img.shields.io/badge/Python-3.9|3.10|3.11|3.12|3.13-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org) ![PyPI - Version](https://img.shields.io/pypi/v/sentimentpredictor) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit) [![Downloads](https://static.pepy.tech/badge/sentimentpredictor)](https://pepy.tech/project/sentimentpredictor)
 
-## Installation
+## Advanced Text Classification with Transformer Models
 
-You can install the package using Poetry. First, ensure that you have Poetry installed. Then, navigate to the package directory and install the dependencies:
+**TextPredict** is a powerful Python package designed for text classification tasks leveraging advanced transformer models. It supports a variety of tasks including sentiment analysis, emotion detection, and zero-shot classification, making it an essential tool for developers and data scientists working in natural language processing (NLP), machine learning (ML), and artificial intelligence (AI).
+
+### Features
+
+- **Sentiment Analysis**: Classify text based on sentiment with high accuracy.
+- **Emotion Detection**: Detect emotions in text effortlessly.
+- **Zero-Shot Classification**: Classify text into unseen categories without any additional training.
+- **Fine-Tuning**: Easily fine-tune models to improve performance on specific datasets.
+- **Model Evaluation**: Evaluate model performance with robust metrics.
+- **Distributed Training**: Support for distributed training to leverage multiple GPUs.
+
+### Installation
 
 ```sh
 pip install textpredict
 ```
 
-## Usage
-
-### Importing the Package
-
-```python
-from textpredict import TextPredict
-```
-
-### Analyzing Text
-
-You can analyze text for different tasks such as sentiment analysis, emotion detection, and zero-shot classification.
+### Usage
 
 #### Sentiment Analysis
 
 ```python
+from textpredict import TextPredict
+
 tp = TextPredict()
 result = tp.analyse("I love using this package!", task="sentiment")
 print(result)
@@ -48,9 +51,7 @@ result = tp.analyse(
 print(result)
 ```
 
-### Fine-Tuning Models
-
-You can fine-tune a model using your own dataset. Here is an example using the IMDb dataset:
+#### Fine-Tuning Models
 
 ```python
 from datasets import load_dataset
@@ -70,112 +71,35 @@ tp.tune_model(
 )
 ```
 
-### Evaluating Models
-
-You can evaluate a model on a given evaluation dataset:
+#### Evaluating Models
 
 ```python
 metrics = tp.evaluate_model(task="sentiment", eval_data=dataset["test"])
 print("Evaluation metrics:", metrics)
 ```
 
-### Saving and Loading Models
-
-You can save a fine-tuned model to a directory and load it later:
-
-#### Saving a Model
+#### Saving and Loading Models
 
 ```python
 tp.save_model(task="sentiment", output_dir="./fine_tuned_sentiment_model")
-```
-
-#### Loading a Model
-
-```python
 tp.load_model(task="sentiment", model_dir="./fine_tuned_sentiment_model")
 result = tp.analyse("I love using this package after fine-tuning!", task="sentiment")
 print(result)
 ```
 
-### Loading and Splitting Data
 
-You can load datasets and split them for training and evaluation.
-
-```python
-from textpredict.datasets import load_data, get_dataset_splits
-
-train_data = load_data("imdb", split="train")
-test_data = load_data("imdb", split="test")
-splits = get_dataset_splits("imdb")
-print("Train Data Sample:", train_data[0])
-print("Test Data Sample:", test_data[0])
-print("Dataset Splits:", splits)
-```
-
-### Distributed Training
-
-Set up distributed training for a model using the IMDb dataset.
-
-```python
-from textpredict.distributed_training import setup_distributed_training
-
-dataset = load_dataset("imdb")
-setup_distributed_training(
-    model="bert-base-uncased",
-    train_dataset=dataset["train"],
-    eval_dataset=dataset["test"],
-    output_dir="./results",
-)
-```
-
-### Benchmarking
-
-Measure inference time and memory usage of models.
-
-```python
-from textpredict.benchmarking import benchmark_model, measure_inference_time, measure_memory_usage
-
-dataset = load_dataset("imdb", split="test[:100]")  # Use a small subset for benchmarking
-model = load_model("distilbert-base-uncased", "sentiment")
-inference_time = measure_inference_time(model, dataset)
-memory_usage = measure_memory_usage(model, dataset)
-benchmark_results = benchmark_model(model, dataset)
-print("Inference Time:", inference_time)
-print("Memory Usage:", memory_usage)
-print("Benchmark Results:", benchmark_results)
-```
-
-### Command Line Interface (CLI)
-
-You can also use the package from the command line.
-
-#### Analyze Text
-
-```sh
-poetry run python -m textpredict.cli analyze "I love using this package!" --task sentiment
-```
-
-#### Options
-
-- `--task`: The task to perform: sentiment, emotion, zeroshot, etc. (default: sentiment)
-- `--model`: The model to use for the task. (default: None)
-- `--class-list`: Comma-separated list of candidate labels for zero-shot classification. (default: None)
-- `--log-level`: Set the logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL. (default: INFO)
-
-### Web Interface
-
-You can serve predictions via a web API using FastAPI.
-
-#### Run the FastAPI App
-
-```sh
-poetry run uvicorn textpredict.web_interface:app --reload
-```
-
-## Contributing
+### Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue on GitHub.
 
-## License
+### License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
+
+### Links
+
+- **GitHub Repository**: [Github](https://github.com/ankit-aglawe/textpredict)
+- **PyPI Project**: [PYPI](https://pypi.org/project/textpredict/)
+- **Documentation**: [Readthedocs](https://github.com/ankit-aglawe/sentimentpredictor#readme)
+- **Source Code**: [Source Code](https://github.com/ankit-aglawe/sentimentpredictor)
+- **Issue Tracker**: [Issue Tracker](https://github.com/ankit-aglawe/sentimentpredictor/issues)

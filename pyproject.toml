@@ -6,6 +6,10 @@ authors = ["Ankit Aglawe <aglawe.ankit@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [{ include = "textpredict" }]
+homepage = "https://github.com/ankit-aglawe/textpredict"
+repository = "https://github.com/ankit-aglawe/textpredict"
+keywords = ["text classification", "emotion classification", "sentiment analysis", "text analysis", "machine learning", "NLP", "transformers", "data science", "pre-trained models", "text mining"]
+
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -28,3 +32,11 @@ flake8 = "^3.9.2"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry.urls]
+"Documentation" = "https://github.com/ankit-aglawe/textpredict#readme"
+"Changelog" = "https://github.com/ankit-aglawe/textpredict/releases"
+"Source" = "https://github.com/ankit-aglawe/textpredict"
+"Tracker" = "https://github.com/ankit-aglawe/textpredict/issues"
+
