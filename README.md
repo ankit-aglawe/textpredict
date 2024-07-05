@@ -7,7 +7,7 @@ TextPredict is a Python package for text classification tasks using transformer 
 You can install the package using Poetry. First, ensure that you have Poetry installed. Then, navigate to the package directory and install the dependencies:
 
 ```sh
-poetry install
+pip install textpredict
 ```
 
 ## Usage
