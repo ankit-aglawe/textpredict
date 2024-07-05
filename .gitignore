@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+.ve
 
 # Distribution / packaging
 .Python
@@ -25,6 +26,31 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+
+# Virtual environment
+.venv/
+
+# pytest cache
+.pytest_cache/
+
+# Other typical Python ignores
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.idea/
+.vscode/
+.DS_Store
+
+# Distribution files
+dist/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

@@ -1,0 +1,1717 @@
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/prediction.py
+Code:
+def predict(model, text, task, class_list=None):
+    if task == "sentiment":
+        return model(text)
+    elif task == "emotion":
+        return model(text)
+    elif task == "zeroshot":
+        if class_list is None:
+            raise ValueError(
+                "Class list must be provided for zero-shot classification."
+            )
+        return model(text, candidate_labels=class_list)
+    else:
+        raise ValueError(f"Task {task} not supported.")
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/__init__.py
+Code:
+# textpredict/__init__.py
+
+from .config import model_config
+from .predictor import TextPredict
+
+__all__ = ["TextPredict", "model_config"]
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/optimization.py
+Code:
+# textpredict/optimization.py
+
+import logging
+
+import torch
+from transformers import AdamW, get_linear_schedule_with_warmup
+
+logger = logging.getLogger(__name__)
+
+
+def create_optimizer(model, learning_rate=5e-5):
+    """
+    Create an optimizer for the model.
+
+    Args:
+        model: The model to optimize.
+        learning_rate (float, optional): The learning rate for the optimizer. Defaults to 5e-5.
+
+    Returns:
+        optimizer: The optimizer.
+    """
+    try:
+        optimizer = AdamW(model.parameters(), lr=learning_rate)
+        logger.info(f"Optimizer created with learning rate {learning_rate}")
+        return optimizer
+    except Exception as e:
+        logger.error(f"Error creating optimizer: {e}")
+        raise
+
+
+def create_scheduler(optimizer, num_training_steps, num_warmup_steps=0):
+    """
+    Create a learning rate scheduler for the optimizer.
+
+    Args:
+        optimizer: The optimizer.
+        num_training_steps (int): The total number of training steps.
+        num_warmup_steps (int, optional): The number of warmup steps. Defaults to 0.
+
+    Returns:
+        scheduler: The learning rate scheduler.
+    """
+    try:
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=num_warmup_steps,
+            num_training_steps=num_training_steps,
+        )
+        logger.info(
+            f"Scheduler created with {num_training_steps} training steps and {num_warmup_steps} warmup steps"
+        )
+        return scheduler
+    except Exception as e:
+        logger.error(f"Error creating scheduler: {e}")
+        raise
+
+
+def optimize_model(
+    model, train_dataloader, eval_dataloader, num_epochs=3, learning_rate=5e-5
+):
+    """
+    Optimize the model using the given data loaders.
+
+    Args:
+        model: The model to optimize.
+        train_dataloader: The data loader for training data.
+        eval_dataloader: The data loader for evaluation data.
+        num_epochs (int, optional): The number of training epochs. Defaults to 3.
+        learning_rate (float, optional): The learning rate for the optimizer. Defaults to 5e-5.
+    """
+    try:
+        optimizer = create_optimizer(model, learning_rate)
+        num_training_steps = len(train_dataloader) * num_epochs
+        scheduler = create_scheduler(optimizer, num_training_steps)
+
+        for epoch in range(num_epochs):
+            model.train()
+            for batch in train_dataloader:
+                outputs = model(**batch)
+                loss = outputs.loss
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+
+            model.eval()
+            eval_loss = 0
+            for batch in eval_dataloader:
+                with torch.no_grad():
+                    outputs = model(**batch)
+                    eval_loss += outputs.loss.item()
+            eval_loss /= len(eval_dataloader)
+            logger.info(f"Epoch {epoch+1}/{num_epochs}, Evaluation Loss: {eval_loss}")
+
+        logger.info("Model optimization complete")
+    except Exception as e:
+        logger.error(f"Error optimizing model: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/cli.py
+Code:
+# textpredict/cli.py
+
+import click
+
+from textpredict import TextPredict
+from textpredict.logger import set_logging_level
+
+
+@click.group()
+def cli():
+    pass
+
+
+@click.command()
+@click.argument("text")
+@click.option(
+    "--task",
+    default="sentiment",
+    help="The task to perform: sentiment, emotion, zeroshot, etc.",
+)
+@click.option("--model", default=None, help="The model to use for the task.")
+@click.option(
+    "--class-list",
+    default=None,
+    help="Comma-separated list of candidate labels for zero-shot classification.",
+)
+@click.option(
+    "--log-level",
+    default="INFO",
+    help="Set the logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL.",
+)
+def analyze(text, task, model, class_list, log_level):
+    """Analyze the given text for the specified task."""
+    set_logging_level(log_level)
+    tp = TextPredict(model_name=model)
+    class_list = class_list.split(",") if class_list else None
+    result = tp.analyse(text, task, class_list)
+    click.echo(result)
+
+
+cli.add_command(analyze)
+
+if __name__ == "__main__":
+    cli()
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/model_loader.py
+Code:
+# textpredict/model_loader.py
+
+import os
+
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from textpredict.config import model_config
+from textpredict.logger import get_logger
+from textpredict.models import (
+    EmotionModel,
+    SentimentModel,
+    ZeroShotModel,
+)
+
+logger = get_logger(__name__)
+
+
+def load_model(model_name: str, task: str):
+    """
+    Load the appropriate model for the given task.
+
+    Args:
+        model_name (str): The name of the model to load.
+        task (str): The task for which the model is to be loaded.
+
+    Returns:
+        BaseModel: An instance of the appropriate model class.
+
+    Raises:
+        ValueError: If the task is not supported or the model name is not valid for the task.
+    """
+    if os.path.isdir(model_name):  # Check if model_name is a directory
+        return load_model_from_directory(model_name, task)
+
+    task_config = model_config.get(task)
+    if not task_config:
+        raise ValueError(f"Task {task} not supported.")
+
+    if model_name not in task_config["options"]:
+        raise ValueError(f"Model {model_name} not supported for task {task}.")
+
+    logger.info(f"Loading model {model_name} for task {task}")
+
+    model_class_mapping = {
+        "sentiment": SentimentModel,
+        "emotion": EmotionModel,
+        "zeroshot": ZeroShotModel,
+    }
+
+    model_class = model_class_mapping.get(task)
+    if not model_class:
+        raise ValueError(f"No model class found for task {task}")
+
+    return model_class(model_name)
+
+
+def load_model_from_directory(model_dir: str, task: str):
+    """
+    Load a model and tokenizer from a saved directory.
+
+    Args:
+        model_dir (str): The directory from which to load the model and tokenizer.
+        task (str): The task for which the model is to be loaded.
+
+    Returns:
+        BaseModel: An instance of the appropriate model class.
+    """
+    logger.info(f"Loading model from directory {model_dir} for task {task}")
+
+    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
+
+    model_class_mapping = {
+        "sentiment": SentimentModel,
+        "emotion": EmotionModel,
+        "zeroshot": ZeroShotModel,
+    }
+
+    model_class = model_class_mapping.get(task)
+    if not model_class:
+        raise ValueError(f"No model class found for task {task}")
+
+    return model_class(model_name=model_dir)
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/predictor.py
+Code:
+# textpredict/predictor.py
+
+import logging
+from functools import wraps
+
+from transformers import DataCollatorWithPadding, Trainer, TrainingArguments
+
+from textpredict.config import model_config
+from textpredict.logger import get_logger
+from textpredict.model_loader import load_model, load_model_from_directory
+from textpredict.utils.data_preprocessing import clean_text
+from textpredict.utils.error_handling import ModelError, log_and_raise
+from textpredict.utils.evaluation import compute_metrics, log_metrics
+from textpredict.utils.fine_tuning import fine_tune_model, tokenize_and_encode
+
+logger = get_logger(__name__)
+
+# Suppress verbose logging from transformers
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
+
+def validate_task(func):
+    @wraps(func)
+    def wrapper(self, text, task, *args, **kwargs):
+        if task not in self.supported_tasks:
+            message = (
+                f"Unsupported task '{task}'. Supported tasks: {self.supported_tasks}"
+            )
+            log_and_raise(ValueError, message)
+        return func(self, text, task, *args, **kwargs)
+
+    return wrapper
+
+
+class TextPredict:
+    def __init__(self, model_name=None):
+        """
+        Initialize the TextPredict class with supported tasks but do not load models.
+
+        Args:
+            model_name (str, optional): The name of the model to load. If not provided, default models will be used.
+        """
+        try:
+            self.supported_tasks = list(model_config.keys())
+            self.models = {}
+            self.default_model_name = model_name
+            logger.info(
+                "TextPredict initialized with supported tasks: "
+                + ", ".join(self.supported_tasks)
+            )
+        except Exception as e:
+            log_and_raise(ModelError, f"Error initializing TextPredict: {e}")
+
+    def load_model_if_not_loaded(self, task):
+        if task not in self.models:
+            config = model_config.get(task)
+            if config:
+                model_name = self.default_model_name or config["default"]
+                logger.info(f"Loading model for task '{task}'...")
+                self.models[task] = load_model(model_name, task)
+                logger.info(f"Model for task '{task}' loaded successfully.")
+            else:
+                log_and_raise(ValueError, f"No configuration found for task '{task}'.")
+
+    @validate_task
+    def analyse(self, text, task, class_list=None, return_probs=False):
+        """
+        Analyze the given text for the specified task.
+
+        Args:
+            text (str or list): The input text or list of texts to analyze.
+            task (str): The task for which to analyze the text.
+            class_list (list, optional): The list of candidate labels for zero-shot classification.
+            return_probs (bool, optional): Whether to return prediction probabilities. Defaults to False.
+
+        Returns:
+            list: The analysis results.
+        """
+        try:
+            self.load_model_if_not_loaded(task)
+            logger.info(f"Analyzing text for task: {task}")
+            model = self.models[task]
+            if isinstance(text, str):
+                text = [clean_text(text)]
+            elif isinstance(text, list):
+                text = [clean_text(t) for t in text]
+            else:
+                log_and_raise(
+                    TypeError, "Input text must be a string or a list of strings."
+                )
+            if task == "zeroshot":
+                predictions = model.predict(text, class_list)
+            else:
+                predictions = model.predict(text)
+            if return_probs:
+                return predictions
+            try:
+                return [pred["label"] for pred in predictions]
+            except:
+                return [pred["labels"] for pred in predictions]
+        except Exception as e:
+            log_and_raise(ModelError, f"Error during analysis for task {task}: {e}")
+
+    def tune_model(
+        self, task, training_data, eval_data=None, output_dir="./results", **kwargs
+    ):
+        """
+        Fine-tune the model for the specified task.
+
+        Args:
+            task (str): The task for which to fine-tune the model.
+            training_data (Dataset): The training data to use for fine-tuning.
+            eval_data (Dataset, optional): The evaluation data to use for validation. Defaults to None.
+            output_dir (str, optional): The directory to save the fine-tuned model and checkpoints. Defaults to "./results".
+            kwargs: Additional keyword arguments for TrainingArguments.
+        """
+        try:
+            self.load_model_if_not_loaded(task)
+            logger.info(f"Fine-tuning model for task: {task}")
+            model_pipeline = self.models[task]
+            model = model_pipeline.model
+            tokenizer = model_pipeline.tokenizer
+            fine_tune_model(
+                model, tokenizer, training_data, eval_data, output_dir, **kwargs
+            )
+        except Exception as e:
+            log_and_raise(ModelError, f"Error during fine-tuning for task {task}: {e}")
+
+    def evaluate_model(self, task, eval_data, **kwargs):
+        """
+        Evaluate the model on the provided evaluation data.
+
+        Args:
+            task (str): The task for which to evaluate the model.
+            eval_data (Dataset): The dataset to use for evaluation.
+            kwargs: Additional keyword arguments for TrainingArguments.
+
+        Returns:
+            dict: A dictionary containing evaluation metrics.
+        """
+        try:
+            self.load_model_if_not_loaded(task)
+            logger.info(f"Evaluating model for task: {task}")
+            model_pipeline = self.models[task]
+            model = model_pipeline.model
+            tokenizer = model_pipeline.tokenizer
+
+            # Tokenize and encode the evaluation dataset
+            eval_data = tokenize_and_encode(eval_data, tokenizer)
+
+            data_collator = DataCollatorWithPadding(tokenizer)
+            training_args = TrainingArguments(
+                output_dir="./results",
+                per_device_eval_batch_size=kwargs.get("eval_batch_size", 8),
+                logging_dir="./logs",
+                logging_steps=kwargs.get("logging_steps", 200),
+                eval_steps=kwargs.get("eval_steps", 200),
+            )
+
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                eval_dataset=eval_data,
+                data_collator=data_collator,
+                compute_metrics=compute_metrics,
+            )
+
+            eval_metrics = trainer.evaluate()
+            log_metrics(eval_metrics)
+            return eval_metrics
+        except Exception as e:
+            log_and_raise(ModelError, f"Error during evaluation for task {task}: {e}")
+
+    def save_model(self, task, output_dir):
+        """
+        Save the model for the specified task to the given directory.
+
+        Args:
+            task (str): The task for which to save the model.
+            output_dir (str): The directory to save the model.
+        """
+        try:
+            self.load_model_if_not_loaded(task)
+            logger.info(f"Saving model for task: {task} to {output_dir}")
+            model_pipeline = self.models[task]
+            model_pipeline.model.save_pretrained(output_dir)
+            model_pipeline.tokenizer.save_pretrained(output_dir)
+            logger.info(f"Model saved to {output_dir}")
+        except Exception as e:
+            log_and_raise(ModelError, f"Error saving model for task {task}: {e}")
+
+    def load_model(self, task, model_dir):
+        """
+        Load a model for the specified task from the given directory.
+
+        Args:
+            task (str): The task for which to load the model.
+            model_dir (str): The directory to load the model from.
+        """
+        try:
+            logger.info(f"Loading model for task: {task} from {model_dir}")
+            self.models[task] = load_model_from_directory(model_dir, task)
+            logger.info(f"Model loaded from {model_dir}")
+        except Exception as e:
+            log_and_raise(ModelError, f"Error loading model for task {task}: {e}")
+
+
+# Example usage
+if __name__ == "__main__":
+    from datasets import load_dataset
+
+    tp = TextPredict()
+    print(tp.analyse("I love using this package!", task="sentiment"))
+    print(tp.analyse("I am excited about this!", task="emotion"))
+    print(
+        tp.analyse(
+            "This package is great for zero-shot learning.",
+            task="zeroshot",
+            class_list=["positive", "negative", "neutral"],
+        )
+    )
+
+    # Fine-tuning example (assuming we have a dataset)
+    dataset = load_dataset("imdb")
+    tp.tune_model(
+        task="sentiment",
+        training_data=dataset["train"],
+        eval_data=dataset["test"],
+        num_train_epochs=1,
+        batch_size=8,
+        learning_rate=2e-5,
+        early_stopping_patience=3,
+    )
+
+    # Evaluate the fine-tuned model
+    metrics = tp.evaluate_model(task="sentiment", eval_data=dataset["test"])
+    print("Evaluation metrics:", metrics)
+
+    # Save the fine-tuned model
+    tp.save_model(task="sentiment", output_dir="./fine_tuned_sentiment_model")
+
+    # Load the saved model
+    tp.load_model(task="sentiment", model_dir="./fine_tuned_sentiment_model")
+    print(tp.analyse("I love using this package after fine-tuning!", task="sentiment"))
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/datasets.py
+Code:
+# textpredict/datasets.py
+
+import logging
+
+from datasets import load_dataset
+
+logger = logging.getLogger(__name__)
+
+
+def load_data(dataset_name: str, split: str = "train"):
+    """
+    Load a dataset split.
+
+    Args:
+        dataset_name (str): The name of the dataset to load.
+        split (str): The dataset split to load (e.g., 'train', 'test'). Defaults to 'train'.
+
+    Returns:
+        Dataset: The loaded dataset split.
+    """
+    try:
+        logger.info(f"Loading {dataset_name} dataset with split {split}")
+        dataset = load_dataset(dataset_name, split=split)
+        return dataset
+    except Exception as e:
+        logger.error(f"Error loading dataset {dataset_name}: {e}")
+        raise
+
+
+def get_dataset_splits(dataset_name: str):
+    """
+    Get the available splits for a dataset.
+
+    Args:
+        dataset_name (str): The name of the dataset.
+
+    Returns:
+        list: A list of available splits for the dataset.
+    """
+    try:
+        logger.info(f"Getting splits for {dataset_name} dataset")
+        dataset_info = load_dataset(dataset_name)
+        return list(dataset_info.keys())
+    except Exception as e:
+        logger.error(f"Error getting splits for dataset {dataset_name}: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/config.py
+Code:
+# textpredict/config.py
+
+model_config = {
+    "sentiment": {
+        "default": "distilbert-base-uncased-finetuned-sst-2-english",
+        "options": [
+            "distilbert-base-uncased-finetuned-sst-2-english",
+            "nlptown/bert-base-multilingual-uncased-sentiment",
+        ],
+    },
+    "emotion": {
+        "default": "bhadresh-savani/bert-base-uncased-emotion",
+        "options": [
+            "bhadresh-savani/bert-base-uncased-emotion",
+            "j-hartmann/emotion-english-distilroberta-base",
+        ],
+    },
+    "zeroshot": {
+        "default": "facebook/bart-large-mnli",
+        "options": ["facebook/bart-large-mnli", "valhalla/distilbart-mnli-12-3"],
+    },
+}
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/config_management.py
+Code:
+# textpredict/config_management.py
+
+import json
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+
+class ConfigManager:
+    def __init__(self, config_file: str):
+        """
+        Initialize the ConfigManager with the specified configuration file.
+
+        Args:
+            config_file (str): Path to the configuration file.
+
+        Raises:
+            FileNotFoundError: If the configuration file does not exist.
+        """
+        self.config_file = config_file
+        if not os.path.exists(config_file):
+            logger.error(f"Configuration file {config_file} not found")
+            raise FileNotFoundError(f"Configuration file {config_file} not found")
+        self.config = self._load_config()
+
+    def _load_config(self) -> dict:
+        """
+        Load the configuration from the file.
+
+        Returns:
+            dict: The configuration dictionary.
+        """
+        try:
+            with open(self.config_file, "r") as f:
+                config = json.load(f)
+            logger.info(f"Configuration loaded from {self.config_file}")
+            return config
+        except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
+            raise
+
+    def get(self, key: str, default=None):
+        """
+        Get a configuration value by key.
+
+        Args:
+            key (str): The configuration key.
+            default: The default value to return if the key is not found.
+
+        Returns:
+            The configuration value.
+        """
+        return self.config.get(key, default)
+
+    def set(self, key: str, value):
+        """
+        Set a configuration value by key.
+
+        Args:
+            key (str): The configuration key.
+            value: The value to set.
+        """
+        self.config[key] = value
+        self._save_config()
+
+    def _save_config(self):
+        """
+        Save the current configuration to the file.
+        """
+        try:
+            with open(self.config_file, "w") as f:
+                json.dump(self.config, f, indent=4)
+            logger.info(f"Configuration saved to {self.config_file}")
+        except Exception as e:
+            logger.error(f"Error saving configuration: {e}")
+            raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/web_interface.py
+Code:
+# textpredict/web_interface.py
+
+import logging
+from typing import List, Optional
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+from textpredict import TextPredict
+
+logger = logging.getLogger(__name__)
+
+
+class PredictionRequest(BaseModel):
+    text: str
+    task: str
+    model: Optional[str] = None
+    class_list: Optional[List[str]] = None
+
+
+class PredictionResponse(BaseModel):
+    result: List
+
+
+app = FastAPI()
+tp = TextPredict()
+
+
+@app.post("/predict", response_model=PredictionResponse)
+async def predict(request: PredictionRequest):
+    """
+    Perform prediction on the input text.
+
+    Args:
+        request (PredictionRequest): The request containing text, task, model, and class_list.
+
+    Returns:
+        PredictionResponse: The prediction result.
+
+    Raises:
+        HTTPException: If there is an error during prediction.
+    """
+    try:
+        logger.info(f"Received prediction request for task: {request.task}")
+        result = tp.analyse(request.text, request.task, request.class_list)
+        return PredictionResponse(result=result)
+    except Exception as e:
+        logger.error(f"Error during prediction: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/custom_models.py
+Code:
+# textpredict/custom_models.py
+
+import logging
+
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+logger = logging.getLogger(__name__)
+
+
+class CustomModel:
+    def __init__(self, model_name: str, num_labels: int):
+        """
+        Initialize a custom model with the specified parameters.
+
+        Args:
+            model_name (str): The name of the custom model to load.
+            num_labels (int): The number of labels for classification.
+
+        Raises:
+            ValueError: If the model cannot be loaded.
+        """
+        try:
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                model_name, num_labels=num_labels
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            logger.info(f"Custom model {model_name} loaded successfully")
+        except Exception as e:
+            logger.error(f"Error loading custom model {model_name}: {e}")
+            raise ValueError(f"Error loading custom model {model_name}: {e}")
+
+    def predict(self, text: str or list):
+        """
+        Make predictions using the custom model.
+
+        Args:
+            text (str or list): The input text or list of texts to classify.
+
+        Returns:
+            list: The prediction results.
+        """
+        try:
+            if isinstance(text, str):
+                text = [text]
+            inputs = self.tokenizer(
+                text, return_tensors="pt", padding=True, truncation=True
+            )
+            outputs = self.model(**inputs)
+            predictions = outputs.logits.argmax(dim=-1)
+            return predictions.tolist()
+        except Exception as e:
+            logger.error(f"Error making predictions with custom model: {e}")
+            raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/logger.py
+Code:
+# textpredict/logger.py
+
+import logging
+import warnings
+
+
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get a logger instance with a predefined configuration.
+
+    Args:
+        name (str): Name of the logger.
+
+    Returns:
+        logging.Logger: Configured logger instance.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.WARNING)
+
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+        logging.getLogger("transformers").setLevel(logging.ERROR)
+        logging.getLogger("datasets").setLevel(logging.ERROR)
+
+        warnings.filterwarnings("ignore", category=UserWarning, module="transformers")
+        warnings.filterwarnings("ignore", category=UserWarning, module="datasets")
+
+    return logger
+
+
+def set_logging_level(level: str) -> None:
+    """
+    Set the logging level for the package.
+
+    Args:
+        level (str): The logging level to set. Options are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'.
+
+    Raises:
+        ValueError: If an invalid logging level is provided.
+    """
+    level = level.upper()
+    if level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+        logging.getLogger().setLevel(level)
+        for handler in logging.getLogger().handlers:
+            handler.setLevel(level)
+
+        logging.info(f"Logging level set to {level}")
+    else:
+        raise ValueError(
+            f"Invalid logging level: {level}. Use 'DEBUG', 'INFO', 'WARNING', 'ERROR', or 'CRITICAL'."
+        )
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/distributed_training.py
+Code:
+# textpredict/distributed_training.py
+
+import logging
+
+import torch
+from transformers import Trainer, TrainingArguments
+
+logger = logging.getLogger(__name__)
+
+
+def setup_distributed_training(
+    model,
+    train_dataset,
+    eval_dataset,
+    output_dir,
+    num_train_epochs=3,
+    per_device_train_batch_size=16,
+    learning_rate=5e-5,
+):
+    """
+    Set up and start distributed training for the given model and datasets.
+
+    Args:
+        model: The model to train.
+        train_dataset: The dataset to use for training.
+        eval_dataset: The dataset to use for evaluation.
+        output_dir (str): The directory to save the trained model and checkpoints.
+        num_train_epochs (int, optional): The number of epochs to train for. Defaults to 3.
+        per_device_train_batch_size (int, optional): The batch size per device during training. Defaults to 16.
+        learning_rate (float, optional): The learning rate for training. Defaults to 5e-5.
+    """
+    try:
+        training_args = TrainingArguments(
+            output_dir=output_dir,
+            num_train_epochs=num_train_epochs,
+            per_device_train_batch_size=per_device_train_batch_size,
+            learning_rate=learning_rate,
+            evaluation_strategy="epoch",
+            save_total_limit=2,
+            load_best_model_at_end=True,
+            logging_dir=f"{output_dir}/logs",
+            logging_steps=10,
+            report_to="none",  # Disable reporting to wandb or other platforms by default
+            fp16=torch.cuda.is_available(),  # Use mixed precision if CUDA is available
+            dataloader_num_workers=4,
+            distributed_type=(
+                "multi-node" if torch.cuda.device_count() > 1 else "single-device"
+            ),
+        )
+
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+        )
+
+        logger.info("Starting distributed training")
+        trainer.train()
+
+        logger.info("Distributed training complete")
+        trainer.save_model(output_dir)
+    except Exception as e:
+        logger.error(f"Error during distributed training: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/benchmarking.py
+Code:
+# textpredict/benchmarking.py
+
+import logging
+import time
+
+import torch
+
+logger = logging.getLogger(__name__)
+
+
+def measure_inference_time(model, dataloader, device="cuda"):
+    """
+    Measure the average inference time of the model.
+
+    Args:
+        model: The model to benchmark.
+        dataloader: The data loader with input data.
+        device (str, optional): The device to run the inference on. Defaults to 'cuda'.
+
+    Returns:
+        float: The average inference time per sample in milliseconds.
+    """
+    try:
+        model.to(device)
+        model.eval()
+
+        start_time = time.time()
+        num_samples = 0
+        with torch.no_grad():
+            for batch in dataloader:
+                inputs = {key: value.to(device) for key, value in batch.items()}
+                _ = model(**inputs)
+                num_samples += len(inputs["input_ids"])
+
+        total_time = time.time() - start_time
+        avg_time_per_sample = (
+            total_time / num_samples
+        ) * 1000  # Convert to milliseconds
+        logger.info(f"Average inference time per sample: {avg_time_per_sample:.2f} ms")
+        return avg_time_per_sample
+    except Exception as e:
+        logger.error(f"Error measuring inference time: {e}")
+        raise
+
+
+def measure_memory_usage(model, dataloader, device="cuda"):
+    """
+    Measure the peak memory usage during inference.
+
+    Args:
+        model: The model to benchmark.
+        dataloader: The data loader with input data.
+        device (str, optional): The device to run the inference on. Defaults to 'cuda'.
+
+    Returns:
+        float: The peak memory usage in MB.
+    """
+    try:
+        model.to(device)
+        model.eval()
+
+        torch.cuda.reset_peak_memory_stats(device)
+        with torch.no_grad():
+            for batch in dataloader:
+                inputs = {key: value.to(device) for key, value in batch.items()}
+                _ = model(**inputs)
+
+        peak_memory = torch.cuda.max_memory_allocated(device) / (
+            1024**2
+        )  # Convert to MB
+        logger.info(f"Peak memory usage: {peak_memory:.2f} MB")
+        return peak_memory
+    except Exception as e:
+        logger.error(f"Error measuring memory usage: {e}")
+        raise
+
+
+def benchmark_model(model, dataloader, device="cuda"):
+    """
+    Benchmark the model for both inference time and memory usage.
+
+    Args:
+        model: The model to benchmark.
+        dataloader: The data loader with input data.
+        device (str, optional): The device to run the inference on. Defaults to 'cuda'.
+
+    Returns:
+        dict: A dictionary containing the average inference time and peak memory usage.
+    """
+    try:
+        avg_inference_time = measure_inference_time(model, dataloader, device)
+        peak_memory_usage = measure_memory_usage(model, dataloader, device)
+        benchmark_results = {
+            "average_inference_time_ms": avg_inference_time,
+            "peak_memory_usage_mb": peak_memory_usage,
+        }
+        logger.info(f"Benchmark results: {benchmark_results}")
+        return benchmark_results
+    except Exception as e:
+        logger.error(f"Error benchmarking model: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/models/__init__.py
+Code:
+# textpredict/models/__init__.py
+
+
+from .emotion import EmotionModel
+from .sentiment import SentimentModel
+from .zeroshot import ZeroShotModel
+
+__all__ = [
+    "SentimentModel",
+    "EmotionModel",
+    "ZeroShotModel",
+    "OffensiveModel",
+    "IronyModel",
+    "HateModel",
+    "EmojiModel",
+    "StanceModel",
+]
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/models/base.py
+Code:
+# # textpredict/models/base.py
+
+# from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
+# from textpredict.logger import get_logger
+
+# logger = get_logger(__name__)
+
+
+# class BaseModel:
+#     def __init__(self, model_name: str, task: str, multi_label: bool = False):
+#         """
+#         Initialize the base model with the specified parameters.
+
+#         Args:
+#             model_name (str): The name of the model to load.
+#             task (str): The task type (e.g., 'sentiment-analysis').
+#             multi_label (bool): Whether the model supports multi-label classification.
+#         """
+#         try:
+#             self.model_name = model_name
+#             self.task = task
+#             self.multi_label = multi_label
+
+#             print("model nname", model_name)
+
+#             self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+#             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+#             self.pipeline = pipeline(task, model=self.model, tokenizer=self.tokenizer)
+
+#             # # GPU setup
+#             # if torch.cuda.is_available() and torch.cuda.device_count() > 0:
+#             #     self.device = torch.device("cuda")
+#             # elif (
+#             #     hasattr(torch.backends, "mps")
+#             #     and torch.backends.mps.is_available()
+#             #     and torch.backends.mps.is_built()
+#             # ):
+#             #     self.device = torch.device("mps")
+#             # else:
+#             #     self.device = torch.device("cpu")
+
+#             # self.parallel = torch.cuda.device_count() > 1
+#             # if self.parallel:
+#             #     self.model = torch.nn.DataParallel(self.model)
+#             # self.model.to(self.device)
+
+#             logger.info(f"Model {model_name} loaded successfully on {self.device}.")
+#         except Exception as e:
+#             logger.error(f"Error initializing model {model_name}: {e}")
+#             raise
+
+#     def predict(self, text: str or list, class_list: list = None) -> list:  # type: ignore
+#         """
+#         Make predictions using the model.
+
+#         Args:
+#             text (str or list): The input text or list of texts to classify.
+#             class_list (list, optional): The list of candidate labels for zero-shot classification.
+
+#         Returns:
+#             list: The prediction results.
+#         """
+#         try:
+#             if self.multi_label and class_list is not None:
+#                 return self.pipeline(text, candidate_labels=class_list)
+#             return self.pipeline(text)
+#         except Exception as e:
+#             logger.error(f"Error making prediction: {e}")
+#             raise
+
+# textpredict/models/base.py
+
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
+from textpredict.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class BaseModel:
+    def __init__(self, model_name: str, task: str, multi_label: bool = False):
+        """
+        Initialize the base model with the specified parameters.
+
+        Args:
+            model_name (str): The name of the model to load.
+            task (str): The task type (e.g., 'sentiment-analysis').
+            multi_label (bool): Whether the model supports multi-label classification.
+        """
+        try:
+            self.model_name = model_name
+            self.task = task
+            self.multi_label = multi_label
+
+            logger.info(f"Initializing {task} model: {model_name}")
+
+            self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.pipeline = pipeline(task, model=self.model, tokenizer=self.tokenizer)
+
+            # GPU setup
+            # if torch.cuda.is_available() and torch.cuda.device_count() > 0:
+            #     self.device = torch.device("cuda")
+            # elif (
+            #     hasattr(torch.backends, "mps")
+            #     and torch.backends.mps.is_available()
+            #     and torch.backends.mps.is_built()
+            # ):
+            #     self.device = torch.device("mps")
+            # else:
+            #     self.device = torch.device("cpu")
+
+            # self.parallel = torch.cuda.device_count() > 1
+            # if self.parallel:
+            #     self.model = torch.nn.DataParallel(self.model)
+            # self.model.to(self.device)
+
+            # logger.info(f"Model {model_name} loaded successfully on {self.device}.")
+        except Exception as e:
+            logger.error(f"Error initializing model {model_name}: {e}")
+            raise
+
+    def predict(self, text: str or list, class_list: list = None) -> list:  # type: ignore
+        """
+        Make predictions using the model.
+
+        Args:
+            text (str or list): The input text or list of texts to classify.
+            class_list (list, optional): The list of candidate labels for zero-shot classification.
+
+        Returns:
+            list: The prediction results.
+        """
+        try:
+            if self.multi_label and class_list is not None:
+                return self.pipeline(text, candidate_labels=class_list)
+            return self.pipeline(text)
+        except Exception as e:
+            logger.error(f"Error making prediction: {e}")
+            raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/models/zeroshot.py
+Code:
+# textpredict/models/zeroshot.py
+
+from textpredict.models.base import BaseModel
+
+
+class ZeroShotModel(BaseModel):
+    def __init__(self, model_name: str):
+        """
+        Initialize the ZeroShotModel with the specified parameters.
+
+        Args:
+            model_name (str): The name of the model to load.
+        """
+        super().__init__(model_name, "zero-shot-classification", multi_label=True)
+
+    def predict(self, text: str or list, class_list: list = None) -> list:  # type: ignore
+        """
+        Make predictions using the zero-shot classification model.
+
+        Args:
+            text (str or list): The input text or list of texts to classify.
+            class_list (list, optional): The list of candidate labels for zero-shot classification.
+
+        Returns:
+            list: The prediction results.
+
+        Raises:
+            ValueError: If class_list is not provided.
+        """
+        if not class_list:
+            raise ValueError(
+                "Class list must be provided for zero-shot classification."
+            )
+        return super().predict(text, class_list=class_list)
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/models/emotion.py
+Code:
+# textpredict/models/emotion.py
+
+from textpredict.models.base import BaseModel
+
+
+class EmotionModel(BaseModel):
+    def __init__(self, model_name: str):
+        """
+        Initialize the EmotionModel with the specified parameters.
+
+        Args:
+            model_name (str): The name of the model to load.
+        """
+        super().__init__(model_name, "text-classification")
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/models/sentiment.py
+Code:
+# textpredict/models/sentiment.py
+
+from textpredict.models.base import BaseModel
+
+
+class SentimentModel(BaseModel):
+    def __init__(self, model_name: str):
+        """
+        Initialize the SentimentModel with the specified parameters.
+
+        Args:
+            model_name (str): The name of the model to load.
+        """
+        super().__init__(model_name, "sentiment-analysis")
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/__init__.py
+Code:
+# textpredict/utils/__init__.py
+
+from .data_preprocessing import clean_text, preprocess_text, tokenize_text
+from .error_handling import DataError, ModelError, log_and_raise
+from .evaluation import compute_metrics, log_metrics
+from .fine_tuning import fine_tune_model
+from .hyperparameter_tuning import tune_hyperparameters
+from .visualization import plot_metrics, show_confusion_matrix
+
+__all__ = [
+    "clean_text",
+    "tokenize_text",
+    "preprocess_text",
+    "compute_metrics",
+    "log_metrics",
+    "tune_hyperparameters",
+    "fine_tune_model",
+    "plot_metrics",
+    "show_confusion_matrix",
+    "ModelError",
+    "DataError",
+    "log_and_raise",
+]
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/hyperparameter_tuning.py
+Code:
+# textpredict/utils/hyperparameter_tuning.py
+
+import logging
+
+import optuna
+
+logger = logging.getLogger(__name__)
+
+
+def objective(trial, model_class, train_data, eval_data, **kwargs):
+    """
+    Objective function for hyperparameter tuning.
+
+    Args:
+        trial (optuna.trial.Trial): A single trial in the hyperparameter optimization process.
+        model_class (type): The model class to be tuned.
+        train_data (Dataset): The training data.
+        eval_data (Dataset): The evaluation data.
+
+    Returns:
+        float: The evaluation metric to be minimized.
+    """
+    try:
+        # Example hyperparameters to tune
+        learning_rate = trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True)
+        batch_size = trial.suggest_int("batch_size", 16, 64)
+
+        # Initialize model with trial parameters
+        model = model_class(
+            learning_rate=learning_rate, batch_size=batch_size, **kwargs
+        )
+        model.train(train_data)
+        eval_metrics = model.evaluate(eval_data)
+
+        # The objective is to minimize the evaluation metric (e.g., loss or error)
+        return eval_metrics["loss"]
+    except Exception as e:
+        logger.error(f"Error in objective function: {e}")
+        raise
+
+
+def tune_hyperparameters(model_class, train_data, eval_data, n_trials=50, **kwargs):
+    """
+    Tune hyperparameters using Optuna.
+
+    Args:
+        model_class (type): The model class to be tuned.
+        train_data (Dataset): The training data.
+        eval_data (Dataset): The evaluation data.
+        n_trials (int, optional): The number of trials for the optimization. Defaults to 50.
+
+    Returns:
+        dict: The best set of hyperparameters found.
+    """
+    try:
+        study = optuna.create_study(direction="minimize")
+        study.optimize(
+            lambda trial: objective(
+                trial, model_class, train_data, eval_data, **kwargs
+            ),
+            n_trials=n_trials,
+        )
+
+        logger.info(f"Best hyperparameters: {study.best_params}")
+        return study.best_params
+    except Exception as e:
+        logger.error(f"Error during hyperparameter tuning: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/evaluation.py
+Code:
+# textpredict/utils/evaluation.py
+
+import logging
+
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from transformers import EvalPrediction
+
+logger = logging.getLogger(__name__)
+
+
+def compute_metrics(p: EvalPrediction):
+    """
+    Compute metrics for evaluation.
+
+    Args:
+        p (EvalPrediction): The evaluation predictions and label_ids.
+
+    Returns:
+        dict: A dictionary containing the computed metrics.
+    """
+    preds = (
+        p.predictions.argmax(-1)
+        if isinstance(p.predictions, tuple)
+        else p.predictions.argmax(-1)
+    )
+    labels = p.label_ids
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, preds, average="weighted"
+    )
+    acc = accuracy_score(labels, preds)
+
+    return {"accuracy": acc, "f1": f1, "precision": precision, "recall": recall}
+
+
+def log_metrics(metrics):
+    """
+    Log the computed metrics.
+
+    Args:
+        metrics (dict): A dictionary containing evaluation metrics.
+    """
+    try:
+        for metric, value in metrics.items():
+            logger.info(f"{metric.capitalize()}: {value:.4f}")
+    except Exception as e:
+        logger.error(f"Error logging metrics: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/data_preprocessing.py
+Code:
+# textpredict/utils/data_preprocessing.py
+
+import logging
+import re
+
+logger = logging.getLogger(__name__)
+
+
+def clean_text(text: str) -> str:
+    """
+    Clean the input text by removing unwanted characters.
+
+    Args:
+        text (str): The input text to clean.
+
+    Returns:
+        str: The cleaned text.
+    """
+    try:
+        text = re.sub(r"http\S+|www\S+|https\S+", "", text, flags=re.MULTILINE)
+        text = re.sub(r"\@\w+|\#", "", text)
+        text = re.sub(r"[^A-Za-z0-9 ]+", "", text)
+        return text.strip()
+    except Exception as e:
+        logger.error(f"Error cleaning text: {e}")
+        raise
+
+
+def tokenize_text(text: str, tokenizer) -> list:
+    """
+    Tokenize the input text using the provided tokenizer.
+
+    Args:
+        text (str): The input text to tokenize.
+        tokenizer: The tokenizer to use for tokenization.
+
+    Returns:
+        list: The tokenized text.
+    """
+    try:
+        return tokenizer.tokenize(text)
+    except Exception as e:
+        logger.error(f"Error tokenizing text: {e}")
+        raise
+
+
+def preprocess_text(text: str, tokenizer) -> list:
+    """
+    Preprocess the input text by cleaning and tokenizing it.
+
+    Args:
+        text (str): The input text to preprocess.
+        tokenizer: The tokenizer to use for tokenization.
+
+    Returns:
+        list: The preprocessed (tokenized) text.
+    """
+    try:
+        cleaned_text = clean_text(text)
+        return tokenize_text(cleaned_text, tokenizer)
+    except Exception as e:
+        logger.error(f"Error preprocessing text: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/fine_tuning.py
+Code:
+# textpredict/utils/fine_tuning.py
+
+from transformers import (
+    DataCollatorWithPadding,
+    EarlyStoppingCallback,
+    Trainer,
+    TrainingArguments,
+)
+
+from textpredict.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+def tokenize_and_encode(dataset, tokenizer, max_length=128):
+    """
+    Tokenize and encode the dataset.
+
+    Args:
+        dataset: The dataset to tokenize and encode.
+        tokenizer: The tokenizer to use.
+        max_length (int, optional): The maximum length of the sequences. Defaults to 128.
+
+    Returns:
+        The tokenized and encoded dataset.
+    """
+
+    def tokenize_function(examples):
+        return tokenizer(
+            examples["text"],
+            padding="max_length",
+            truncation=True,
+            max_length=max_length,
+        )
+
+    return dataset.map(tokenize_function, batched=True)
+
+
+def fine_tune_model(
+    model, tokenizer, train_dataset, eval_dataset=None, output_dir="./results", **kwargs
+):
+    """
+    Fine-tune the model with the given training data.
+
+    Args:
+        model: The model to be fine-tuned.
+        tokenizer: The tokenizer used for encoding the data.
+        train_dataset: The training dataset.
+        eval_dataset: The evaluation dataset (optional).
+        output_dir (str): The directory to save the fine-tuned model and checkpoints.
+        kwargs: Additional keyword arguments for TrainingArguments.
+    """
+    # Tokenize and encode the datasets
+    train_dataset = tokenize_and_encode(train_dataset, tokenizer)
+    if eval_dataset:
+        eval_dataset = tokenize_and_encode(eval_dataset, tokenizer)
+
+    eval_steps = kwargs.get("eval_steps", 200)
+    save_steps = kwargs.get(
+        "save_steps", eval_steps * 2
+    )  # Ensure save_steps is a multiple of eval_steps
+
+    training_args = TrainingArguments(
+        output_dir=output_dir,
+        evaluation_strategy="steps" if eval_dataset else "no",
+        save_strategy="steps",
+        logging_dir=f"{output_dir}/logs",
+        logging_steps=kwargs.get("logging_steps", 200),
+        eval_steps=eval_steps,
+        save_steps=save_steps,
+        per_device_train_batch_size=kwargs.get("batch_size", 8),
+        per_device_eval_batch_size=kwargs.get("eval_batch_size", 8),
+        num_train_epochs=kwargs.get("num_train_epochs", 3),
+        learning_rate=kwargs.get("learning_rate", 5e-5),
+        weight_decay=kwargs.get("weight_decay", 0.01),
+        load_best_model_at_end=kwargs.get("load_best_model_at_end", True),
+        metric_for_best_model=kwargs.get("metric_for_best_model", "eval_loss"),
+        save_total_limit=kwargs.get("save_total_limit", 3),
+        fp16=kwargs.get("fp16", False),
+    )
+
+    callbacks = []
+    if "early_stopping_patience" in kwargs:
+        callbacks.append(
+            EarlyStoppingCallback(
+                early_stopping_patience=kwargs["early_stopping_patience"]
+            )
+        )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        tokenizer=tokenizer,
+        data_collator=DataCollatorWithPadding(tokenizer),
+        callbacks=callbacks if callbacks else None,
+    )
+
+    logger.info("Starting fine-tuning...")
+    train_result = trainer.train()
+    logger.info("Fine-tuning completed.")
+
+    train_metrics = train_result.metrics
+    trainer.save_model()  # Saves the tokenizer too for easy upload
+
+    trainer.log_metrics("train", train_metrics)
+    trainer.save_metrics("train", train_metrics)
+    trainer.save_state()
+
+    if eval_dataset:
+        logger.info("Starting evaluation...")
+        eval_metrics = trainer.evaluate()
+        logger.info("Evaluation completed.")
+
+        trainer.log_metrics("eval", eval_metrics)
+        trainer.save_metrics("eval", eval_metrics)
+
+    return trainer
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/visualization.py
+Code:
+# textpredict/utils/visualization.py
+
+import itertools
+import logging
+
+import matplotlib.pyplot as plt
+
+logger = logging.getLogger(__name__)
+
+
+def plot_metrics(metrics, output_dir):
+    """
+    Plot training and evaluation metrics.
+
+    Args:
+        metrics (dict): Dictionary containing lists of metric values (e.g., {'accuracy': [0.8, 0.85, ...]}).
+        output_dir (str): Directory to save the plots.
+    """
+    try:
+        for metric_name, values in metrics.items():
+            plt.figure()
+            plt.plot(values, label=metric_name)
+            plt.xlabel("Epoch")
+            plt.ylabel(metric_name.capitalize())
+            plt.title(f"{metric_name.capitalize()} Over Epochs")
+            plt.legend()
+            plt.grid(True)
+            plot_path = f"{output_dir}/{metric_name}.png"
+            plt.savefig(plot_path)
+            logger.info(f"{metric_name.capitalize()} plot saved to {plot_path}")
+            plt.close()
+    except Exception as e:
+        logger.error(f"Error plotting metrics: {e}")
+        raise
+
+
+def show_confusion_matrix(confusion_matrix, labels, output_dir):
+    """
+    Plot and save the confusion matrix.
+
+    Args:
+        confusion_matrix (ndarray): Confusion matrix from model predictions.
+        labels (list): List of label names.
+        output_dir (str): Directory to save the confusion matrix plot.
+    """
+    try:
+        plt.figure(figsize=(10, 8))
+        plt.imshow(confusion_matrix, interpolation="nearest", cmap=plt.cm.Blues)
+        plt.title("Confusion Matrix")
+        plt.colorbar()
+        tick_marks = range(len(labels))
+        plt.xticks(tick_marks, labels, rotation=45)
+        plt.yticks(tick_marks, labels)
+
+        thresh = confusion_matrix.max() / 2.0
+        for i, j in itertools.product(
+            range(confusion_matrix.shape[0]), range(confusion_matrix.shape[1])
+        ):
+            plt.text(
+                j,
+                i,
+                format(confusion_matrix[i, j], "d"),
+                horizontalalignment="center",
+                color="white" if confusion_matrix[i, j] > thresh else "black",
+            )
+
+        plt.tight_layout()
+        plt.ylabel("True label")
+        plt.xlabel("Predicted label")
+        plot_path = f"{output_dir}/confusion_matrix.png"
+        plt.savefig(plot_path)
+        logger.info(f"Confusion matrix plot saved to {plot_path}")
+        plt.close()
+    except Exception as e:
+        logger.error(f"Error plotting confusion matrix: {e}")
+        raise
+
+--------------------------------------------------------------------------------
+Path: /home/machinelearning/Desktop/WORK/PY/textpredict/textpredict/utils/error_handling.py
+Code:
+# textpredict/utils/error_handling.py
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class ModelError(Exception):
+    """Custom exception for model-related errors."""
+
+    pass
+
+
+class DataError(Exception):
+    """Custom exception for data-related errors."""
+
+    pass
+
+
+def log_and_raise(exception, message):
+    """
+    Log an error message and raise the specified exception.
+
+    Args:
+        exception (Exception): The exception class to raise.
+        message (str): The error message to log and raise.
+
+    Raises:
+        exception: The specified exception with the provided message.
+    """
+    logger.error(message)
+    raise exception(message)
+
+--------------------------------------------------------------------------------
