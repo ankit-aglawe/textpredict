@@ -1,101 +1,78 @@
-# textpredict/benchmarking.py
-
 import logging
+import os
 import time
 
+import psutil
 import torch
+
+from textpredict.utils.error_handling import ModelError, log_and_raise
 
 logger = logging.getLogger(__name__)
 
 
-def measure_inference_time(model, dataloader, device="cuda"):
-    """
-    Measure the average inference time of the model.
-
-    Args:
-        model: The model to benchmark.
-        dataloader: The data loader with input data.
-        device (str, optional): The device to run the inference on. Defaults to 'cuda'.
-
-    Returns:
-        float: The average inference time per sample in milliseconds.
-    """
+def measure_inference_time(model, dataset, device="cpu"):
     try:
-        model.to(device)
-        model.eval()
+        model.to(device)  # Move the model to the device
+        model.eval()  # Set the model to evaluation mode
 
         start_time = time.time()
-        num_samples = 0
-        with torch.no_grad():
-            for batch in dataloader:
-                inputs = {key: value.to(device) for key, value in batch.items()}
-                _ = model(**inputs)
-                num_samples += len(inputs["input_ids"])
+        for batch in dataset:
+            inputs = {
+                key: val.to(device)
+                for key, val in batch.items()
+                if key in ["input_ids", "attention_mask"]
+            }
+            if not inputs:
+                raise ValueError(
+                    "You have to specify either input_ids or inputs_embeds"
+                )
+            with torch.no_grad():
+                outputs = model(**inputs)
+        end_time = time.time()
 
-        total_time = time.time() - start_time
-        avg_time_per_sample = (
-            total_time / num_samples
-        ) * 1000  # Convert to milliseconds
-        logger.info(f"Average inference time per sample: {avg_time_per_sample:.2f} ms")
-        return avg_time_per_sample
+        inference_time = end_time - start_time
+        logger.info(f"Inference time: {inference_time} seconds")
+        return inference_time
     except Exception as e:
-        logger.error(f"Error measuring inference time: {e}")
-        raise
+        log_and_raise(ModelError, f"Error measuring inference time: {e}")
 
 
-def measure_memory_usage(model, dataloader, device="cuda"):
-    """
-    Measure the peak memory usage during inference.
-
-    Args:
-        model: The model to benchmark.
-        dataloader: The data loader with input data.
-        device (str, optional): The device to run the inference on. Defaults to 'cuda'.
-
-    Returns:
-        float: The peak memory usage in MB.
-    """
+def measure_memory_usage(model, dataset, device="cpu"):
     try:
         model.to(device)
         model.eval()
 
-        torch.cuda.reset_peak_memory_stats(device)
-        with torch.no_grad():
-            for batch in dataloader:
-                inputs = {key: value.to(device) for key, value in batch.items()}
-                _ = model(**inputs)
+        process = psutil.Process(os.getpid())
+        mem_before = process.memory_info().rss  # in bytes
 
-        peak_memory = torch.cuda.max_memory_allocated(device) / (
-            1024**2
-        )  # Convert to MB
-        logger.info(f"Peak memory usage: {peak_memory:.2f} MB")
-        return peak_memory
+        for batch in dataset:
+            inputs = {
+                key: val.to(device)
+                for key, val in batch.items()
+                if key in ["input_ids", "attention_mask"]
+            }
+            if not inputs:
+                raise ValueError(
+                    "You have to specify either input_ids or inputs_embeds"
+                )
+            with torch.no_grad():
+                outputs = model(**inputs)
+
+        mem_after = process.memory_info().rss  # in bytes
+        memory_usage = mem_after - mem_before
+        logger.info(f"Memory usage: {memory_usage / (1024 ** 2)} MB")  # Convert to MB
+        return memory_usage
     except Exception as e:
-        logger.error(f"Error measuring memory usage: {e}")
-        raise
+        log_and_raise(ModelError, f"Error measuring memory usage: {e}")
 
 
-def benchmark_model(model, dataloader, device="cuda"):
-    """
-    Benchmark the model for both inference time and memory usage.
-
-    Args:
-        model: The model to benchmark.
-        dataloader: The data loader with input data.
-        device (str, optional): The device to run the inference on. Defaults to 'cuda'.
-
-    Returns:
-        dict: A dictionary containing the average inference time and peak memory usage.
-    """
+def benchmark_model(model, dataset, device="cpu"):
     try:
-        avg_inference_time = measure_inference_time(model, dataloader, device)
-        peak_memory_usage = measure_memory_usage(model, dataloader, device)
-        benchmark_results = {
-            "average_inference_time_ms": avg_inference_time,
-            "peak_memory_usage_mb": peak_memory_usage,
+        inference_time = measure_inference_time(model, dataset, device)
+        memory_usage = measure_memory_usage(model, dataset, device)
+        return {
+            "inference_time": inference_time,
+            "memory_usage": memory_usage,
         }
-        logger.info(f"Benchmark results: {benchmark_results}")
-        return benchmark_results
     except Exception as e:
-        logger.error(f"Error benchmarking model: {e}")
-        raise
+        log_and_raise(ModelError, f"Error benchmarking model: {e}")

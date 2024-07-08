@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 .ve
+crawl.py
+all_python_code.txt
+fine_tuned_sentiment_model
+results
 
 # Distribution / packaging
 .Python

@@ -1,51 +1,58 @@
-# textpredict/distributed_training.py
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+)
 
-import logging
+from textpredict.logger import get_logger
+from textpredict.utils.error_handling import ModelError, log_and_raise
 
-import torch
-from transformers import Trainer, TrainingArguments
+logger = get_logger(__name__)
 
-logger = logging.getLogger(__name__)
+
+def tokenize_dataset(dataset, tokenizer):
+    def preprocess_function(examples):
+        return tokenizer(examples["text"], truncation=True, padding=True)
+
+    return dataset.map(preprocess_function, batched=True)
 
 
 def setup_distributed_training(
-    model,
-    train_dataset,
-    eval_dataset,
-    output_dir,
-    num_train_epochs=3,
-    per_device_train_batch_size=16,
-    learning_rate=5e-5,
+    model_name, train_dataset, eval_dataset, output_dir, **kwargs
 ):
     """
-    Set up and start distributed training for the given model and datasets.
+    Setup distributed training for a model using the provided datasets.
 
     Args:
-        model: The model to train.
-        train_dataset: The dataset to use for training.
-        eval_dataset: The dataset to use for evaluation.
-        output_dir (str): The directory to save the trained model and checkpoints.
-        num_train_epochs (int, optional): The number of epochs to train for. Defaults to 3.
-        per_device_train_batch_size (int, optional): The batch size per device during training. Defaults to 16.
-        learning_rate (float, optional): The learning rate for training. Defaults to 5e-5.
+        model_name (str): The name of the model to train.
+        train_dataset (Dataset): The training dataset.
+        eval_dataset (Dataset): The evaluation dataset.
+        output_dir (str): The directory to save training results.
+        **kwargs: Additional keyword arguments for TrainingArguments.
+
+    Returns:
+        None
     """
     try:
+        model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        # Tokenize the datasets
+        train_dataset = tokenize_dataset(train_dataset, tokenizer)
+        eval_dataset = tokenize_dataset(eval_dataset, tokenizer)
+
         training_args = TrainingArguments(
             output_dir=output_dir,
-            num_train_epochs=num_train_epochs,
-            per_device_train_batch_size=per_device_train_batch_size,
-            learning_rate=learning_rate,
-            evaluation_strategy="epoch",
-            save_total_limit=2,
-            load_best_model_at_end=True,
-            logging_dir=f"{output_dir}/logs",
-            logging_steps=10,
-            report_to="none",  # Disable reporting to wandb or other platforms by default
-            fp16=torch.cuda.is_available(),  # Use mixed precision if CUDA is available
-            dataloader_num_workers=4,
-            distributed_type=(
-                "multi-node" if torch.cuda.device_count() > 1 else "single-device"
-            ),
+            per_device_train_batch_size=kwargs.get("per_device_train_batch_size", 8),
+            per_device_eval_batch_size=kwargs.get("per_device_eval_batch_size", 8),
+            num_train_epochs=kwargs.get("num_train_epochs", 3),
+            evaluation_strategy=kwargs.get("evaluation_strategy", "steps"),
+            save_steps=kwargs.get("save_steps", 10_000),
+            save_total_limit=kwargs.get("save_total_limit", 2),
+            learning_rate=kwargs.get("learning_rate", 5e-5),
+            logging_dir=kwargs.get("logging_dir", "./logs"),
+            logging_steps=kwargs.get("logging_steps", 500),
         )
 
         trainer = Trainer(
@@ -55,11 +62,6 @@ def setup_distributed_training(
             eval_dataset=eval_dataset,
         )
 
-        logger.info("Starting distributed training")
         trainer.train()
-
-        logger.info("Distributed training complete")
-        trainer.save_model(output_dir)
     except Exception as e:
-        logger.error(f"Error during distributed training: {e}")
-        raise
+        log_and_raise(ModelError, f"Error during distributed training: {e}")

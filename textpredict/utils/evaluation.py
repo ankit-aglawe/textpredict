@@ -35,14 +35,17 @@ def compute_metrics(p: EvalPrediction):
 
 def log_metrics(metrics):
     """
-    Log the computed metrics.
+    Log the metrics.
 
     Args:
-        metrics (dict): A dictionary containing evaluation metrics.
+        metrics (list or dict): The metrics to log. Can be a list of metric dicts or a single metric dict.
     """
-    try:
+    if isinstance(metrics, list):
+        for metric_dict in metrics:
+            for metric, value in metric_dict.items():
+                logger.info(f"{metric} = {value}")
+    elif isinstance(metrics, dict):
         for metric, value in metrics.items():
-            logger.info(f"{metric.capitalize()}: {value:.4f}")
-    except Exception as e:
-        logger.error(f"Error logging metrics: {e}")
-        raise
+            logger.info(f"{metric} = {value}")
+    else:
+        logger.error("Metrics format not recognized. Expected list or dict.")
