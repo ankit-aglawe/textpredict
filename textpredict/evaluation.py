@@ -1,5 +1,4 @@
-# textpredict/utils/evaluation.py
-
+# evaluation.py
 import logging
 
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
@@ -9,15 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 def compute_metrics(p: EvalPrediction):
-    """
-    Compute metrics for evaluation.
-
-    Args:
-        p (EvalPrediction): The evaluation predictions and label_ids.
-
-    Returns:
-        dict: A dictionary containing the computed metrics.
-    """
     preds = (
         p.predictions.argmax(-1)
         if isinstance(p.predictions, tuple)
@@ -35,17 +25,20 @@ def compute_metrics(p: EvalPrediction):
 
 def log_metrics(metrics):
     """
-    Log the metrics.
+    Log the metrics to the console.
 
     Args:
-        metrics (list or dict): The metrics to log. Can be a list of metric dicts or a single metric dict.
+        metrics (list or dict): The metrics to log.
     """
     if isinstance(metrics, list):
-        for metric_dict in metrics:
-            for metric, value in metric_dict.items():
-                logger.info(f"{metric} = {value}")
+        for entry in metrics:
+            if isinstance(entry, dict):
+                for metric, value in entry.items():
+                    print(f"{metric}: {value}")
+            else:
+                print(entry)
     elif isinstance(metrics, dict):
         for metric, value in metrics.items():
-            logger.info(f"{metric} = {value}")
+            print(f"{metric}: {value}")
     else:
-        logger.error("Metrics format not recognized. Expected list or dict.")
+        print(metrics)

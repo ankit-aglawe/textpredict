@@ -1,22 +1,43 @@
-from .benchmarking import benchmark_model, measure_inference_time, measure_memory_usage
-from .config import model_config
-from .config_management import ConfigManager
-from .datasets import get_dataset_splits, load_data
-from .distributed_training import setup_distributed_training
-from .logger import set_logging_level
-from .model_loader import load_model
+from .benchmarking import Benchmarking
+from .config import load_config, save_config
+from .datasets import load_data
+from .evaluators import (
+    Seq2seqEvaluator,
+    SequenceClassificationEvaluator,
+    TokenClassificationEvaluator,
+)
+from .explainability import Explainability
+from .model_comparison import ModelComparison
 from .predictor import TextPredict
+from .trainers import (
+    Seq2seqTrainer,
+    SequenceClassificationTrainer,
+    TokenClassificationTrainer,
+)
+from .utils import clean_text, tokenize_text
+from .visualization import Visualization
 
 __all__ = [
     "TextPredict",
-    "model_config",
-    "ConfigManager",
+    "SequenceClassificationTrainer",
+    "Seq2seqTrainer",
+    "TokenClassificationTrainer",
+    "SequenceClassificationEvaluator",
+    "Seq2seqEvaluator",
+    "TokenClassificationEvaluator",
+    "Benchmarking",
+    "Visualization",
+    "ModelComparison",
+    "Explainability",
+    "save_config",
+    "load_config",
     "load_data",
-    "get_dataset_splits",
-    "setup_distributed_training",
-    "set_logging_level",
-    "load_model",
-    "measure_inference_time",
-    "measure_memory_usage",
-    "benchmark_model",
+    "clean_text",
+    "tokenize_text",
 ]
+
+
+def initialize(task, device="cpu", model_name=None, source="huggingface"):
+    predictor = TextPredict(device=device)
+    predictor.initialize(task=task, model_name=model_name, source=source)
+    return predictor

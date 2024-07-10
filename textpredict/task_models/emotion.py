@@ -1,11 +1,11 @@
-# textpredict/models/sentiment.py
+# textpredict/models/emotion.py
 
-from textpredict.models.base import BaseModel
+from textpredict.task_models.base import BaseModel
 
 
-class SentimentModel(BaseModel):
+class EmotionModel(BaseModel):
     def __init__(self, model_name: str, model=None, tokenizer=None):
-        super().__init__(model_name, "sentiment-analysis", model, tokenizer)
+        super().__init__(model_name, "emotion", model, tokenizer)
 
     def predict(self, texts):
         inputs = self.tokenizer(

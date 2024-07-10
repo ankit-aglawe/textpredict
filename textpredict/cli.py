@@ -28,13 +28,19 @@ def cli():
     default="INFO",
     help="Set the logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL.",
 )
-def analyze(text, task, model, class_list, log_level):
+@click.option(
+    "--source",
+    default="huggingface",
+    help="The source of the model: huggingface or local.",
+)
+def analyze(text, task, model, class_list, log_level, source):
     """Analyze the given text for the specified task."""
     try:
         set_logging_level(log_level)
-        tp = TextPredict(model_name=model)
+        tp = TextPredict(device="cpu")
+        tp.initialize(task=task, model_name=model, source=source)
         class_list = class_list.split(",") if class_list else None
-        result = tp.analyse(text, task, class_list)
+        result = tp.analyze(text=text)
         click.echo(result)
     except Exception as e:
         log_and_raise(RuntimeError, f"Error during CLI analysis: {e}")

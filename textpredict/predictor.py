@@ -8,84 +8,133 @@ from textpredict.utils.data_preprocessing import clean_text
 from textpredict.utils.error_handling import ModelError, log_and_raise
 
 logger = get_logger(__name__)
-
-# Suppress verbose logging from transformers
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
 def validate_task(func):
     @wraps(func)
-    def wrapper(self, text, task, *args, **kwargs):
-        if task not in self.supported_tasks:
-            message = (
-                f"Unsupported task '{task}'. Supported tasks: {self.supported_tasks}"
-            )
+    def wrapper(self, text, *args, **kwargs):
+        if self.current_task not in self.supported_tasks:
+            message = f"Unsupported task '{self.current_task}'. Supported tasks: {self.supported_tasks}"
             log_and_raise(ValueError, message)
-        return func(self, text, task, *args, **kwargs)
+        return func(self, text, *args, **kwargs)
 
     return wrapper
 
 
 class TextPredict:
-    def __init__(self, model_name=None, device="cpu"):
+    def __init__(self, device="cpu"):
         self.supported_tasks = list(model_config.keys())
         self.models = {}
-        self.default_model_name = model_name
+        self.current_task = None
         self.device = device
         logger.info(
             "TextPredict initialized with supported tasks: "
             + ", ".join(self.supported_tasks)
         )
 
-    def load_model_if_not_loaded(self, task, model_name=None, from_local=True):
-        if task not in self.models:
-            model_name = model_name or self.default_model_name or model_config[task]
-            source = "local directory" if from_local else "HuggingFace"
-            logger.info(
-                f"Loading model '{model_name}' for task '{task}' from {source}..."
+    def initialize(self, task, device="cpu", model_name=None, source="huggingface"):
+        """
+        Initialize the model for a specific task.
+
+        Args:
+            task (str): The task to perform (e.g., 'sentiment', 'emotion', 'zeroshot').
+            device (str, optional): The device to run the model on. Defaults to 'cpu'.
+            model_name (str, optional): The model name. Defaults to None.
+            source (str, optional): The source of the model ('huggingface' or 'local'). Defaults to 'huggingface'.
+        """
+        try:
+            if task not in self.supported_tasks:
+                raise ValueError(f"Unsupported task '{task}'")
+
+            self.current_task = task
+            self.device = device
+            self.default_model_name = model_name or model_config[task]
+
+            self.load_model(self.default_model_name, source)
+
+        except Exception as e:
+            log_and_raise(
+                ModelError, f"Error during initialization for task {task}: {e}"
             )
-            if from_local:
-                self.models[task] = load_model_from_directory(model_name, task)
-            else:
-                self.models[task] = load_model(model_name, task)
-            self.models[task].model.to(self.device)
-            logger.info(
-                f"Model for task '{task}' loaded successfully on {self.device}."
-            )
+
+    def load_model(self, model_name, source="huggingface"):
+        """
+        Load a model for the current task.
+
+        Args:
+            model_name (str): The name of the model to load.
+            source (str, optional): The source of the model ('huggingface' or 'local'). Defaults to 'huggingface'.
+        """
+        try:
+            if model_name not in self.models:
+                source_str = "local directory" if source == "local" else "HuggingFace"
+                logger.info(f"Loading model '{model_name}' from {source_str}...")
+
+                if source == "local":
+                    self.models[model_name] = load_model_from_directory(
+                        model_name, self.current_task
+                    )
+                else:
+                    self.models[model_name] = load_model(model_name, self.current_task)
+
+                self.models[model_name].model.to(self.device)
+                logger.info(
+                    f"Model '{model_name}' loaded successfully on {self.device}."
+                )
+
+        except Exception as e:
+            log_and_raise(ModelError, f"Error loading model '{model_name}': {e}")
 
     @validate_task
-    def analyse(self, text, task, class_list=None, return_probs=False):
-        try:
-            self.load_model_if_not_loaded(task)
-            logger.info(f"Analyzing text for task: {task}")
-            model = self.models[task]
+    def analyze(self, text, return_probs=False, candidate_labels=None):
+        """
+        Analyze the given text.
 
+        Args:
+            text (str or list): The text to analyze.
+            return_probs (bool, optional): Whether to return probabilities. Defaults to False.
+            candidate_labels (list, optional): The candidate labels for zero-shot classification. Defaults to None.
+
+        Returns:
+            list: The analysis results.
+        """
+        try:
+            model_name = self.default_model_name
+            if model_name not in self.models:
+                raise ValueError(f"Model '{model_name}' is not loaded.")
+
+            logger.info(f"Analyzing text for task: {self.current_task}")
+            model = self.models[model_name]
             texts = [
                 clean_text(t) for t in (text if isinstance(text, list) else [text])
             ]
 
-            if task == "zeroshot":
-                predictions = model.predict(texts, class_list)
+            if self.current_task == "zeroshot":
+                if candidate_labels is None:
+                    raise ValueError(
+                        "Candidate labels must be provided for zero-shot classification."
+                    )
+
+                predictions = model.predict(
+                    texts, candidate_labels=candidate_labels, return_probs=False
+                )
             else:
-                predictions = model.predict(texts)
+                predictions = model.predict(texts, return_probs=False)
 
-            if return_probs:
-                return predictions
-
-            return [
-                pred["label"] if "label" in pred else pred["labels"]
-                for pred in predictions
-            ]
-        except Exception as e:
-            log_and_raise(ModelError, f"Error during analysis for task {task}: {e}")
-
-    def load_model(self, task, model_dir, from_local=True):
-        try:
-            logger.info(f"Loading model for task: {task} from {model_dir}")
-            if from_local:
-                self.models[task] = load_model_from_directory(model_dir, task)
+            if self.current_task == "ner":
+                return [
+                    pred["entities"] if "entities" in pred else pred["labels"]
+                    for pred in predictions
+                ]
             else:
-                self.models[task] = load_model(model_dir, task)
-            logger.info(f"Model loaded from {model_dir}")
+
+                return [
+                    pred["label"] if "label" in pred else pred["labels"]
+                    for pred in predictions
+                ]
+
         except Exception as e:
-            log_and_raise(ModelError, f"Error loading model for task {task}: {e}")
+            log_and_raise(
+                ModelError, f"Error during analysis for task {self.current_task}: {e}"
+            )

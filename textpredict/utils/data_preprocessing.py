@@ -1,5 +1,3 @@
-# textpredict/utils/data_preprocessing.py
-
 import logging
 import re
 
