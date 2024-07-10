@@ -7,98 +7,123 @@
 
 ## Advanced Text Classification with Transformer Models
 </div>
+TextPredict is a powerful Python package designed for various text analysis and prediction tasks using advanced NLP models. It simplifies the process of performing sentiment analysis, emotion detection, zero-shot classification, named entity recognition (NER), and more. Built on top of Hugging Face's Transformers, TextPredict allows seamless integration with pre-trained models or custom models for specific tasks.
 
-**TextPredict** is a powerful Python package designed for text classification tasks leveraging advanced transformer models. It supports a variety of tasks including sentiment analysis, emotion detection, and zero-shot classification, making it an essential tool for developers and data scientists working in natural language processing (NLP), machine learning (ML), and artificial intelligence (AI).
+## Features
 
-### Features
+- **Sentiment Analysis**: Determine the sentiment of text (positive, negative, neutral).
+- **Emotion Detection**: Identify emotions such as happiness, sadness, anger, etc.
+- **Zero-Shot Classification**: Classify text into custom categories without additional training.
+- **Named Entity Recognition (NER)**: Extract entities like names, locations, and organizations from text.
+- **Sequence Classification**: Fine-tune models for custom classification tasks.
+- **Token Classification**: Classify tokens within text for tasks like NER.
+- **Sequence-to-Sequence (Seq2Seq)**: Perform tasks like translation and summarization.
+- **Model Comparison**: Evaluate and compare multiple models on the same dataset.
+- **Explainability**: Understand model predictions through feature importance analysis.
+- **Text Cleaning**: Utilize utility functions for preprocessing text data.
 
-- **Sentiment Analysis**: Classify text based on sentiment with high accuracy.
-- **Emotion Detection**: Detect emotions in text effortlessly.
-- **Zero-Shot Classification**: Classify text into unseen categories without any additional training.
-- **Fine-Tuning**: Easily fine-tune models to improve performance on specific datasets.
-- **Model Evaluation**: Evaluate model performance with robust metrics.
-- **Distributed Training**: Support for distributed training to leverage multiple GPUs.
+## Supported Tasks
 
-### Installation
+- Sentiment Analysis
+- Emotion Detection
+- Zero-Shot Classification
+- Named Entity Recognition (NER)
+- Sequence Classification
+- Token Classification
+- Sequence-to-Sequence (Seq2Seq)
+
+## Installation
+
+You can install the package via pip:
 
 ```sh
 pip install textpredict
 ```
 
-### Usage
+## Quick Start
 
-#### Sentiment Analysis
+### Initialization and Simple Prediction
+
+Initialize the TextPredict model and perform simple predictions:
 
 ```python
-from textpredict import TextPredict
+import textpredict as tp
 
-tp = TextPredict()
-result = tp.analyse("I love using this package!", task="sentiment")
-print(result)
+# Initialize for sentiment analysis
+
+# task : ["sentiment", "ner", "zeroshot", "emotion", "sequence_classification", "token_classification", "seq2seq" etc]
+
+model = tp.initialize(task="sentiment") 
+result = model.analyze(text = ["I love this product!", "I hate this product!"], return_probs=False)
+print(f"Sentiment Prediction Result: {result}")
 ```
 
-#### Emotion Detection
+### Using Pre-trained Models from Hugging Face
+
+Utilize a specific pre-trained model from Hugging Face:
 
 ```python
-result = tp.analyse("I am excited about this!", task="emotion")
-print(result)
+model = tp.initialize(task="emotion", model_name="AnkitAI/reviews-roberta-base-sentiment-analysis", source="huggingface")
+result = model.analyze(text = "I love this product!", return_probs=True)
+print(f"Sentiment Prediction Result: {result}")
 ```
 
-#### Zero-Shot Classification
+### Using Models from Local Directory
+
+Load and use a model from a local directory:
 
 ```python
-result = tp.analyse(
-    "This package is great for zero-shot learning.",
-    task="zeroshot",
-    class_list=["positive", "negative", "neutral"],
-)
-print(result)
+model = tp.initialize(task="ner", model_name="./results", source="local")
+result = model.analyze(text="I love this product!", return_probs=True)
+print(f"Sentiment Prediction Result: {result}")
 ```
 
-#### Fine-Tuning Models
+### Training a Model
+
+Train a model for sequence classification:
 
 ```python
+import textpredict as tp
 from datasets import load_dataset
 
 # Load dataset
-dataset = load_dataset("imdb")
+train_data = load_dataset("imdb", split="train")
+val_data = load_dataset("imdb", split="test")
 
-# Fine-tune model
-tp.tune_model(
-    task="sentiment",
-    training_data=dataset["train"],
-    eval_data=dataset["test"],
-    num_train_epochs=1,
-    batch_size=8,
-    learning_rate=2e-5,
-    early_stopping_patience=3,
-)
+# Initialize and train the model
+trainer = tp.SequenceClassificationTrainer(model_name="bert-base-uncased", output_dir="./results", train_dataset=train_data, val_dataset=val_data)
+trainer.train()
+
+# Save and evaluate the trained model
+trainer.save()
+metrics = trainer.evaluate(test_dataset=val_data)
+print(f"Evaluation Metrics: {metrics}")
 ```
 
-#### Evaluating Models
+For detailed examples, refer to the `examples` directory.
+
+### Explainability and Feature Importance
+
+Understand model predictions with feature importance:
 
 ```python
-metrics = tp.evaluate_model(task="sentiment", eval_data=dataset["test"])
-print("Evaluation metrics:", metrics)
+text = "I love this product!"
+explainer = tp.Explainability(model_name="bert-base-uncased", task="sentiment", device="cpu")
+importance = explainer.feature_importance(text=text)
+print(f"Feature Importance: {importance}")
 ```
 
-#### Saving and Loading Models
+## Documentation
 
-```python
-tp.save_model(task="sentiment", output_dir="./fine_tuned_sentiment_model")
-tp.load_model(task="sentiment", model_dir="./fine_tuned_sentiment_model")
-result = tp.analyse("I love using this package after fine-tuning!", task="sentiment")
-print(result)
-```
+For detailed documentation, please refer to the [TextPredict Documentation](#).
 
+## Contributing
 
-### Contributing
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before making a pull request.
 
-Contributions are welcome! Please feel free to submit a pull request or open an issue on GitHub.
+## License
 
-### License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ### Links
 
@@ -107,3 +132,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 - **Documentation**: [Readthedocs](https://github.com/ankit-aglawe/sentimentpredictor#readme)
 - **Source Code**: [Source Code](https://github.com/ankit-aglawe/sentimentpredictor)
 - **Issue Tracker**: [Issue Tracker](https://github.com/ankit-aglawe/sentimentpredictor/issues)
+
