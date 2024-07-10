@@ -1,17 +1,11 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Upload Python Package
 
+# Trigger the workflow when a release is published
 on:
   release:
     types: [published]
 
+# Permissions for the workflow
 permissions:
   contents: read
 
@@ -26,7 +20,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
-        python-version: '3.9'  # Specify your desired Python version
+        python-version: '3.9'
 
     - name: Install Poetry
       run: |
@@ -43,4 +37,3 @@ jobs:
       env:
         POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
       run: poetry publish --build --username __token__ --password $POETRY_PYPI_TOKEN_PYPI
-
