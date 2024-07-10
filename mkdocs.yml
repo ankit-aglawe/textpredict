@@ -1,0 +1,76 @@
+site_name: TextPredict Docs
+site_description: TextPredict is a powerful Python package designed for various text analysis and prediction tasks using advanced NLP models.
+site_url: https://ankit-aglawe.github.io/textpredict
+
+theme:
+  name: material
+  # logo: assets/logo3.png  # Path to your logo
+  # favicon: assets/logo3.png  # Optional: Path to your favicon
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: pink
+      accent: grey
+      toggle:
+        icon: material/lightbulb
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: pink
+      accent: grey
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to light mode
+  features:
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - navigation.indexes
+    - content.tooltips
+    - navigation.path
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - navigation.tabs
+  icon:
+    repo: fontawesome/brands/github-alt
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - API Reference: api_reference.md
+  - Examples: examples.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - codehilite
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.tilde
+
+plugins:
+  - search
+
+extra_css:
+  - css/custom.css
+  - css/termynal.css  # Include Termynal CSS
+
+extra_javascript:
+  - js/custom.js
+  - js/termynal.js  # Include Termynal JavaScript
+
+repo_name: ankit-aglawe/textpredict
+repo_url: https://github.com/ankit-aglawe/textpredict
+edit_uri: ''
+
+extra:
+  analytics:
+    provider: google
+    property: G-YNEVN69SC3
+  social:
+  - icon: fontawesome/brands/github-alt
+    link: https://github.com/ankit-aglawe
+  - icon: fontawesome/brands/twitter
+    link: https://twitter.com/ankit_aglawe

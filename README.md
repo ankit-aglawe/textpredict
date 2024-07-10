@@ -129,7 +129,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **GitHub Repository**: [Github](https://github.com/ankit-aglawe/textpredict)
 - **PyPI Project**: [PYPI](https://pypi.org/project/textpredict/)
-- **Documentation**: [Readthedocs](https://github.com/ankit-aglawe/sentimentpredictor#readme)
+- **Documentation**: [TextPredict Documentation](https://ankit-aglawe.github.io/textpredict/)
 - **Source Code**: [Source Code](https://github.com/ankit-aglawe/sentimentpredictor)
 - **Issue Tracker**: [Issue Tracker](https://github.com/ankit-aglawe/sentimentpredictor/issues)
 

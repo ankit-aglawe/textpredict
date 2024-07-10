@@ -36,7 +36,7 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry.urls]
-"Documentation" = "https://github.com/ankit-aglawe/textpredict#readme"
+"Documentation" = "https://ankit-aglawe.github.io/textpredict/"
 "Changelog" = "https://github.com/ankit-aglawe/textpredict/releases"
 "Source" = "https://github.com/ankit-aglawe/textpredict"
 "Tracker" = "https://github.com/ankit-aglawe/textpredict/issues"
