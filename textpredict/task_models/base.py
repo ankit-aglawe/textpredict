@@ -12,7 +12,7 @@ class BaseModel:
             self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    def predict(self, texts):
+    def predict(self, texts, return_probs, candidate_labels=None):
         raise NotImplementedError(
             "The predict method must be implemented by subclasses."
         )

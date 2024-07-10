@@ -7,7 +7,7 @@ class SentimentModel(BaseModel):
     def __init__(self, model_name: str, model=None, tokenizer=None):
         super().__init__(model_name, "sentiment-analysis", model, tokenizer)
 
-    def predict(self, texts, return_probs=False):
+    def predict(self, texts, return_probs):
         inputs = self.tokenizer(
             texts, return_tensors="pt", truncation=True, padding=True
         )
@@ -22,8 +22,16 @@ class SentimentModel(BaseModel):
             probabilities = logits.softmax(dim=-1)
 
             return [
-                {"label": label, "score": prob}
+                {"label": label, "score": max(prob), "probabilities": prob}
                 for label, prob in zip(labels, probabilities.tolist())
             ]
         else:
             return [{"label": label} for label in labels]
+
+    def get_label_ids(self):
+        label_ids = list(self.model.config.id2label.keys())
+        labels = list(self.model.config.id2label.values())
+        return [
+            {"label_id": label_id, "label": label}
+            for label_id, label in zip(label_ids, labels)
+        ]

@@ -1,5 +1,15 @@
 import json
 
+supported_tasks = [
+    "sentiment",
+    "emotion",
+    "zeroshot",
+    "ner",
+    "sequence_classification",
+    "token_classification",
+    "seq2seq",
+]
+
 model_config = {
     "sentiment": "cardiffnlp/twitter-roberta-base-sentiment-latest",
     "emotion": "SamLowe/roberta-base-go_emotions",

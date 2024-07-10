@@ -1,11 +1,9 @@
-# textpredict/models/emotion.py
-
 from textpredict.task_models.base import BaseModel
 
 
-class EmotionModel(BaseModel):
+class SequenceClassificationModel(BaseModel):
     def __init__(self, model_name: str, model=None, tokenizer=None):
-        super().__init__(model_name, "emotion", model, tokenizer)
+        super().__init__(model_name, "sequence_classification", model, tokenizer)
 
     def predict(self, texts, return_probs):
         inputs = self.tokenizer(

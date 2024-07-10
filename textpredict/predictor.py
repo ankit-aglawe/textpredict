@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
 
-from textpredict.config import model_config
+from textpredict.config import model_config, supported_tasks
 from textpredict.logger import get_logger
 from textpredict.model_loader import load_model, load_model_from_directory
 from textpredict.utils.data_preprocessing import clean_text
@@ -24,7 +24,7 @@ def validate_task(func):
 
 class TextPredict:
     def __init__(self, device="cpu"):
-        self.supported_tasks = list(model_config.keys())
+        self.supported_tasks = supported_tasks
         self.models = {}
         self.current_task = None
         self.device = device
@@ -49,6 +49,10 @@ class TextPredict:
 
             self.current_task = task
             self.device = device
+
+            # if os.path.isdir(model_name):
+            #     self.models[task] = load_model_from_directory(model_name, source)
+            # else:
             self.default_model_name = model_name or model_config[task]
 
             self.load_model(self.default_model_name, source)
@@ -100,6 +104,7 @@ class TextPredict:
             list: The analysis results.
         """
         try:
+
             model_name = self.default_model_name
             if model_name not in self.models:
                 raise ValueError(f"Model '{model_name}' is not loaded.")
@@ -117,22 +122,12 @@ class TextPredict:
                     )
 
                 predictions = model.predict(
-                    texts, candidate_labels=candidate_labels, return_probs=False
+                    texts, return_probs, candidate_labels=candidate_labels
                 )
             else:
-                predictions = model.predict(texts, return_probs=False)
+                predictions = model.predict(texts, return_probs)
 
-            if self.current_task == "ner":
-                return [
-                    pred["entities"] if "entities" in pred else pred["labels"]
-                    for pred in predictions
-                ]
-            else:
-
-                return [
-                    pred["label"] if "label" in pred else pred["labels"]
-                    for pred in predictions
-                ]
+            return predictions
 
         except Exception as e:
             log_and_raise(

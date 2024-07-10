@@ -52,13 +52,15 @@ class BaseTrainer:
                 model=self.model,
                 args=training_args,
                 train_dataset=self.train_dataset,
-                eval_dataset=self.val_dataset,  # Use unified naming for validation dataset
+                eval_dataset=self.val_dataset,
                 tokenizer=self.tokenizer,
                 compute_metrics=compute_metrics,
                 callbacks=self.callbacks if self.callbacks else None,
             )
             if from_checkpoint:
-                trainer.train(resume_from_checkpoint=True)
+                trainer.train(
+                    resume_from_checkpoint=True
+                )  # TODO: add path to take checkpoints from
             else:
                 trainer.train()
             self.state = trainer.state

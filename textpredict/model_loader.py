@@ -5,6 +5,7 @@ from textpredict.task_models import (
     EmotionModel,
     NERModel,
     SentimentModel,
+    SequenceClassificationModel,
     ZeroShotModel,
 )
 from textpredict.utils.error_handling import log_and_raise
@@ -16,6 +17,7 @@ MODEL_CLASS_MAPPING = {
     "emotion": EmotionModel,
     "zeroshot": ZeroShotModel,
     "ner": NERModel,
+    "sequence_classification": SequenceClassificationModel,
 }
 
 

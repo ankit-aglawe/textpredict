@@ -2,111 +2,154 @@ from datasets import load_dataset
 
 import textpredict as tp
 
-
 # Function to test simple prediction using default model
-def text_simple_prediction():
-    # sentiment
-    text = ["I love this product!", "I love this product!"]
-    model = tp.initialize(task="sentiment")
-    result = model.analyze(text, return_probs=True)
-    print(f"Simple Prediction Result: {result}")
+# def text_simple_prediction():
+#     # sentiment
+#     texts = ["I love this product!", "I love this product!"]
+#     text = "I love this product!"
+#     model = tp.initialize(task="sentiment")
+#     result = model.analyze(texts, return_probs=False)
+#     print(f"Simple Prediction Result: {result}")
 
-    # emotion
-    text = ["I am happy today", "I am happy today"]
-    model = tp.initialize(task="emotion")
-    result = model.analyze(text, return_probs=True)
-    print(f"Emotion found : {result}")
+#     # # emotion
+#     text = ["I am happy today", "I am happy today"]
+#     model = tp.initialize(task="emotion")
+#     result = model.analyze(text, return_probs=False)
+#     print(f"Emotion found : {result}")
 
-    # zeroshot
-    text = ["I am happy today", "I am happy today"]
-    model = tp.initialize(task="zeroshot")
+#     # zeroshot
+#     texts = ["I am happy today", "I am happy today"]
+#     text = "I am happy today"
+#     model = tp.initialize(task="zeroshot")
 
-    result = model.analyze(
-        text, candidate_labels=["negative", "positive"], return_probs=True
-    )
-    print(f"Zeroshot Prediction Result: {result}")
+#     result = model.analyze(
+#         text, candidate_labels=["negative", "positive"], return_probs=True
+#     )
+#     print(f"Zeroshot Prediction Result: {result}")
 
-    # ner
-    text = ["I am in London, united kingdom", "I am in Manchester, united kingdom"]
-    model = tp.initialize(task="ner")
-    result = model.analyze(text)
-    print(f"NER found : {result}")
+#     # ner
+#     texts = ["I am in London, united kingdom", "I am in Manchester, united kingdom"]
+#     text = "I am in Manchester, united kingdom"
+
+#     model = tp.initialize(task="ner")
+#     result = model.analyze(text, return_probs=True)
+#     print(f"NER found : {result}")
 
 
 # Function to test prediction using a Hugging Face model
-def text_hf_prediction():
-    text = "I love this product!"
-    model = tp.initialize(
-        task="sentiment",
-        device="cpu",
-        model_name="bert-base-uncased",
-        source="huggingface",
-    )
-    result = model.analyze(text)
-    print(f"Hugging Face Prediction Result: {result}")
+# def text_hf_prediction():
+#     text = "I love this product!"
+
+#     model = tp.initialize(
+#         task="sentiment",
+#         device="cpu",
+#         model_name="AnkitAI/reviews-roberta-base-sentiment-analysis",
+#         source="huggingface",
+#     )
+
+#     result = model.analyze(text, return_probs=True)
+
+#     print(f"Hugging Face Prediction Result: {result}")
+
+#     # # emotion
+#     text = ["I am happy today", "I am happy today"]
+#     model = tp.initialize(
+#         task="emotion", model_name="AnkitAI/deberta-v3-small-base-emotions-classifier"
+#     )
+#     result = model.analyze(text, return_probs=False)
+#     print(f"Emotion found : {result}")
+
+#     # zeroshot
+#     texts = ["I am happy today", "I am happy today"]
+#     text = "I am happy today"
+#     model = tp.initialize(task="zeroshot", source="huggingface")
+
+#     result = model.analyze(
+#         text, candidate_labels=["negative", "positive"], return_probs=True
+#     )
+#     print(f"Zeroshot Prediction Result: {result}")
+
+#     # ner
+#     texts = ["I am in London, united kingdom", "I am in Manchester, united kingdom"]
+#     text = "I am in Manchester, united kingdom"
+
+#     model = tp.initialize(task="ner", source="huggingface")
+#     result = model.analyze(text, return_probs=True)
+#     print(f"NER found : {result}")
 
 
-# Function to train a sequence classification model
-def train_sequence_classification():
-    # Load and preprocess the dataset
-    raw_train_dataset = load_dataset("imdb", split="train[:10]")
-    raw_validation_dataset = load_dataset("imdb", split="test[:10]")
+# # Function to train a sequence classification model
+# def train_sequence_classification():
+#     # Load and preprocess the dataset
+#     raw_train_dataset = load_dataset("imdb", split="train[:10]")
+#     raw_validation_dataset = load_dataset("imdb", split="test[:10]")
 
-    tokenized_train_dataset = tp.load_data(dataset=raw_train_dataset, splits=["train"])
-    tokenized_validation_dataset = tp.load_data(
-        dataset=raw_validation_dataset, splits=["test"]
-    )
+#     tokenized_train_dataset = tp.load_data(dataset=raw_train_dataset, splits=["train"])
+#     tokenized_validation_dataset = tp.load_data(
+#         dataset=raw_validation_dataset, splits=["test"]
+#     )
 
-    train_dataset = tokenized_train_dataset["train"]
-    val_dataset = tokenized_validation_dataset["test"]
+#     train_dataset = tokenized_train_dataset["train"]
+#     val_dataset = tokenized_validation_dataset["test"]
 
-    training_config = {
-        "num_train_epochs": 0.064,
-        "per_device_train_batch_size": 2,
-    }
+#     training_config = {
+#         "num_train_epochs": 0.064,
+#         "per_device_train_batch_size": 2,
+#     }
 
-    trainer = tp.SequenceClassificationTrainer(
-        model_name="bert-base-uncased",
-        output_dir="./results",
-        device="cpu",
-        training_config=training_config,
-    )
+#     trainer = tp.SequenceClassificationTrainer(
+#         model_name="bert-base-uncased",
+#         output_dir="./results_new",
+#         device="cpu",
+#         training_config=training_config,
+#     )
 
-    # Assign the preprocessed training data to the trainer
-    trainer.train_dataset = train_dataset
-    trainer.val_dataset = val_dataset  # Set the validation dataset
+#     # Assign the preprocessed training data to the trainer
+#     trainer.train_dataset = train_dataset
+#     trainer.val_dataset = val_dataset  # Set the validation dataset
 
-    # Train the model
-    trainer.train(from_checkpoint=False)
-    trainer.save()
-    metrics = trainer.get_metrics()
-    print(f"Training Metrics: {metrics}")
+#     # Train the model
+#     trainer.train(from_checkpoint=True)
+#     trainer.save()
+#     metrics = trainer.get_metrics()
+#     print(f"Training Metrics: {metrics}")
+
+#     evaluate = trainer.evaluate(test_dataset=val_dataset)
+#     print(f"Evaluation Metrics: {evaluate}")
+
+#     model = tp.initialize(model_name="./results_new", task="sequence_classification")
+
+#     text = "its a good product"
+
+#     result = model.analyze(text, return_probs=True)
+
+#     print("result", result)
 
 
-# Function to evaluate a sequence classification model
-def evaluate_sequence_classification():
-    # Load and preprocess the dataset
-    raw_test_dataset = load_dataset("imdb", split="test[:10]")
+# # Function to evaluate a sequence classification model
+# def evaluate_sequence_classification():
+#     # Load and preprocess the dataset
+#     raw_test_dataset = load_dataset("imdb", split="test[:10]")
 
-    tokenized_test_dataset = tp.load_data(dataset=raw_test_dataset, splits=["test"])
-    test_dataset = tokenized_test_dataset["test"]
+#     tokenized_test_dataset = tp.load_data(dataset=raw_test_dataset, splits=["test"])
+#     test_dataset = tokenized_test_dataset["test"]
 
-    evaluation_config = {
-        "per_device_eval_batch_size": 2,
-    }
+#     evaluation_config = {
+#         "per_device_eval_batch_size": 2,
+#     }
 
-    evaluator = tp.SequenceClassificationEvaluator(
-        model_name="bert-base-uncased",
-        device="cpu",
-        evaluation_config=evaluation_config,
-    )
+#     evaluator = tp.SequenceClassificationEvaluator(
+#         model_name="bert-base-uncased",
+#         device="cpu",
+#         evaluation_config=evaluation_config,
+#     )
 
-    # Assign the preprocessed test data to the evaluator
-    evaluator.data = test_dataset
+#     # Assign the preprocessed test data to the evaluator
+#     evaluator.data = test_dataset
 
-    # Evaluate the model
-    eval_metrics = evaluator.evaluate()
-    print(f"Evaluation Metrics: {eval_metrics}")
+#     # Evaluate the model
+#     eval_metrics = evaluator.evaluate()
+#     print(f"Evaluation Metrics: {eval_metrics}")
 
 
 # Function to benchmark a model
@@ -166,8 +209,8 @@ def clean_text_example():
 
 # Main function to run all tests
 def main():
-    print("Running Simple Prediction...")
-    text_simple_prediction()
+    # print("Running Simple Prediction...")
+    # text_simple_prediction()
 
     # print("\nRunning Hugging Face Prediction...")
     # text_hf_prediction()
@@ -181,17 +224,17 @@ def main():
     # print("\nBenchmarking Model...")
     # benchmark_model()
 
-    # print("\nVisualizing Metrics...")
-    # visualize_metrics()
+    print("\nVisualizing Metrics...")
+    visualize_metrics()
 
-    # print("\nComparing Models...")
-    # compare_models()
+    print("\nComparing Models...")
+    compare_models()
 
-    # print("\nExplaining Prediction...")
-    # explain_prediction()
+    print("\nExplaining Prediction...")
+    explain_prediction()
 
-    # print("\nCleaning Text Example...")
-    # clean_text_example()
+    print("\nCleaning Text Example...")
+    clean_text_example()
 
 
 if __name__ == "__main__":
