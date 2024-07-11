@@ -60,7 +60,7 @@ def load_model_from_directory(model_dir: str, task: str, device):
             model.to(device)
 
         except Exception as e:
-            logger.warning(f"Failed to load model on {device}: {e}")
+            logger.warnings(f"Failed to load model on {device}: {e}")
             logger.info("Falling back to CPU.")
             device = "cpu"
             model = AutoModelForSequenceClassification.from_pretrained(model_dir)

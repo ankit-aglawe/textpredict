@@ -14,27 +14,27 @@ class BaseTrainer:
         self,
         model_name=None,
         output_dir="./results",
-        config=None,
-        device=None,
         training_config=None,
+        device=None,
     ):
         self.model_name = model_name
         self.output_dir = output_dir
 
         self.device = device or DeviceManager.get_device()
 
-        self.config = config or {}
         self.training_config = {**default_training_config, **(training_config or {})}
-        self.model = self.load_model(model_name, self.device)
+        self.model = self.load_model(model_name=self.model_name, device=self.device)
         self.tokenizer = self.load_tokenizer(model_name)
-        self.model.to(device)
+
         self.callbacks = []
         self.best_params = None
         self.state = None
         self.train_dataset = None  # To be set directly by the user
         self.val_dataset = None  # To be set directly by the user if needed
 
-        logger.info(f"Trainer initialized with model {model_name} on {device}")
+        self.model.to(self.device)
+
+        logger.info(f"Trainer initialized with model {model_name} on {self.device}")
 
     def load_model(self, model_name):
         raise NotImplementedError("Subclasses should implement this method.")

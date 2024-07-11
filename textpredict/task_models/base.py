@@ -23,7 +23,7 @@ class BaseModel:
                 self.model.to(self.device)
 
             except Exception as e:
-                logger.warning(f"Failed to load model on {self.device}: {e}")
+                logger.warnings(f"Failed to load model on {self.device}: {e}")
                 logger.info("Falling back to CPU.")
                 self.device = "cpu"
                 model = AutoModelForSequenceClassification.from_pretrained(model_name)

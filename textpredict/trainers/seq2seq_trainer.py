@@ -1,14 +1,24 @@
 from transformers import AutoModelForSeq2SeqLM
 
-from textpredict import logger
 from textpredict.evaluators import Seq2seqEvaluator
+from textpredict.logger import get_logger
 
 from .base_trainer import BaseTrainer
 
+logger = get_logger(__name__)
+
 
 class Seq2seqTrainer(BaseTrainer):
-    def __init__(self, model_name, output_dir, config=None, device=None):
-        super().__init__(model_name, output_dir, config, device)
+    def __init__(self, model_name, output_dir, training_config=None, device=None):
+
+        super().__init__(
+            model_name=model_name,
+            output_dir=output_dir,
+            training_config=training_config,
+            device=device,
+        )
+
+        self.model.gradient_checkpointing_enable()
 
     def load_model(self, model_name, device):
         """
@@ -20,7 +30,6 @@ class Seq2seqTrainer(BaseTrainer):
         Returns:
             AutoModelForSeq2SeqLM: The loaded model.
         """
-        device = device
 
         try:
             model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
@@ -34,9 +43,9 @@ class Seq2seqTrainer(BaseTrainer):
 
         except Exception as e:
 
-            logger.warning(f"Failed to load model on {self.device}: {e}")
+            logger.warnings(f"Failed to load model on {device}: {e}")
             logger.info("Falling back to CPU.")
-            self.device = "cpu"
+            device = "cpu"
             model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
             model.to(device)
 

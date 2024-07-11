@@ -16,7 +16,7 @@ class SequenceClassificationEvaluator(BaseEvaluator):
 
         except Exception as e:
 
-            logger.warning(f"Failed to load model on {device}: {e}")
+            logger.warnings(f"Failed to load model on {device}: {e}")
             logger.info("Falling back to CPU.")
             device = "cpu"
             model = AutoModelForSequenceClassification.from_pretrained(model_name)

@@ -18,7 +18,7 @@ class TokenClassificationModel(BaseModel):
                 self.model.to(self.device)
 
             except Exception as e:
-                logger.warning(f"Failed to load model on {self.device}: {e}")
+                logger.warnings(f"Failed to load model on {self.device}: {e}")
                 logger.info("Falling back to CPU.")
                 self.device = "cpu"
                 self.model = AutoModelForTokenClassification.from_pretrained(model_name)

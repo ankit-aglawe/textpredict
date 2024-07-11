@@ -1,4 +1,4 @@
-import torch
+import torch  # type: ignore
 
 from textpredict.logger import get_logger
 
@@ -13,11 +13,11 @@ class DeviceManager:
         """
         Set the global device for the application.
         Args:
-            device (str): The preferred device ('cpu' or 'gpu').
+            device (str): The preferred device ('cpu' or 'cuda').
         Returns:
-            str: The device that will be used ('cpu' or 'gpu').
+            str: The device that will be used ('cpu' or 'cuda').
         """
-        if device == "gpu":
+        if device == "cuda":
             if not torch.cuda.is_available():
                 logger.warning("GPU is not available. Falling back to CPU.")
                 device = "cpu"

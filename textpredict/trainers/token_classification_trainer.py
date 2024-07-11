@@ -9,9 +9,15 @@ logger = get_logger(__name__)
 
 
 class TokenClassificationTrainer(BaseTrainer):
-    def __init__(self, model_name, output_dir, config=None, device=None):
+    def __init__(self, model_name, output_dir, training_config=None, device=None):
 
-        super().__init__(model_name, output_dir, config, device)
+        super().__init__(
+            model_name=model_name,
+            output_dir=output_dir,
+            training_config=training_config,
+            device=device,
+        )
+
         logger.info(
             f"Initialized TokenClassificationTrainer with model {model_name} on {device}"
         )
@@ -35,9 +41,9 @@ class TokenClassificationTrainer(BaseTrainer):
 
         except Exception as e:
 
-            logger.warning(f"Failed to load model on {self.device}: {e}")
+            logger.warnings(f"Failed to load model on {device}: {e}")
             logger.info("Falling back to CPU.")
-            self.device = "cpu"
+            device = "cpu"
             model = AutoModelForTokenClassification.from_pretrained(model_name)
             model.to(device)
 

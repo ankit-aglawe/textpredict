@@ -23,7 +23,7 @@ class Seq2seqEvaluator(BaseEvaluator):
 
         except Exception as e:
 
-            logger.warning(f"Failed to load model on {device}: {e}")
+            logger.warnings(f"Failed to load model on {device}: {e}")
             logger.info("Falling back to CPU.")
             self.device = "cpu"
             model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
