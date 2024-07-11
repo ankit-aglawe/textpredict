@@ -55,7 +55,6 @@ import textpredict as tp
 
 model = tp.initialize(task="sentiment") 
 result = model.analyze(text = ["I love this product!", "I hate this product!"], return_probs=False)
-print(f"Sentiment Prediction Result: {result}")
 ```
 
 ### Using Pre-trained Models from Hugging Face
@@ -65,7 +64,6 @@ Utilize a specific pre-trained model from Hugging Face:
 ```python
 model = tp.initialize(task="emotion", model_name="AnkitAI/reviews-roberta-base-sentiment-analysis", source="huggingface")
 result = model.analyze(text = "I love this product!", return_probs=True)
-print(f"Sentiment Prediction Result: {result}")
 ```
 
 ### Using Models from Local Directory
@@ -75,7 +73,6 @@ Load and use a model from a local directory:
 ```python
 model = tp.initialize(task="ner", model_name="./results", source="local")
 result = model.analyze(text="I love this product!", return_probs=True)
-print(f"Sentiment Prediction Result: {result}")
 ```
 
 ### Training a Model
@@ -97,7 +94,6 @@ trainer.train()
 # Save and evaluate the trained model
 trainer.save()
 metrics = trainer.evaluate(test_dataset=val_data)
-print(f"Evaluation Metrics: {metrics}")
 ```
 
 For detailed examples, refer to the `examples` directory.
@@ -110,12 +106,11 @@ Understand model predictions with feature importance:
 text = "I love this product!"
 explainer = tp.Explainability(model_name="bert-base-uncased", task="sentiment", device="cpu")
 importance = explainer.feature_importance(text=text)
-print(f"Feature Importance: {importance}")
 ```
 
 ## Documentation
 
-For detailed documentation, please refer to the [TextPredict Documentation](#).
+For detailed documentation, please refer to the [TextPredict Documentation](https://ankit-aglawe.github.io/textpredict/).
 
 ## Contributing
 
@@ -125,6 +120,11 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Credits
+
+This project leverages the [Transformers](https://github.com/huggingface/transformers) library by Hugging Face. We extend our gratitude to the Hugging Face team and to the developers, contributors for their work for their work in creating and maintaining such a valuable resource for the NLP community.
+
+
 ### Links
 
 - **GitHub Repository**: [Github](https://github.com/ankit-aglawe/textpredict)
@@ -132,4 +132,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: [TextPredict Documentation](https://ankit-aglawe.github.io/textpredict/)
 - **Source Code**: [Source Code](https://github.com/ankit-aglawe/sentimentpredictor)
 - **Issue Tracker**: [Issue Tracker](https://github.com/ankit-aglawe/sentimentpredictor/issues)
+
 
