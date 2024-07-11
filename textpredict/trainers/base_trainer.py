@@ -1,12 +1,12 @@
-import logging
-
 from transformers import AutoTokenizer, Trainer, TrainingArguments
 
 from textpredict.config import default_training_config
+from textpredict.device_manager import DeviceManager
 from textpredict.evaluation import compute_metrics, log_metrics
+from textpredict.logger import get_logger
 from textpredict.utils.hyperparameter_tuning import tune_hyperparameters
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BaseTrainer:
@@ -15,15 +15,17 @@ class BaseTrainer:
         model_name=None,
         output_dir="./results",
         config=None,
-        device="cpu",
+        device=None,
         training_config=None,
     ):
         self.model_name = model_name
         self.output_dir = output_dir
-        self.device = device
+
+        self.device = device or DeviceManager.get_device()
+
         self.config = config or {}
         self.training_config = {**default_training_config, **(training_config or {})}
-        self.model = self.load_model(model_name)
+        self.model = self.load_model(model_name, self.device)
         self.tokenizer = self.load_tokenizer(model_name)
         self.model.to(device)
         self.callbacks = []
@@ -31,6 +33,7 @@ class BaseTrainer:
         self.state = None
         self.train_dataset = None  # To be set directly by the user
         self.val_dataset = None  # To be set directly by the user if needed
+
         logger.info(f"Trainer initialized with model {model_name} on {device}")
 
     def load_model(self, model_name):

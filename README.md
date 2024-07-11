@@ -47,14 +47,16 @@ pip install textpredict
 Initialize the TextPredict model and perform simple predictions:
 
 ```python
-import textpredict as tp
+from textpredict as initialize
 
 # Initialize for sentiment analysis
 
 # task : ["sentiment", "ner", "zeroshot", "emotion", "sequence_classification", "token_classification", "seq2seq" etc]
 
-model = tp.initialize(task="sentiment") 
-result = model.analyze(text = ["I love this product!", "I hate this product!"], return_probs=False)
+text = "I hate this product!" # ["I love this product!", "I hate this product!"]
+
+model = initialize("sentiment") 
+result = model.analyze()
 ```
 
 ### Using Pre-trained Models from Hugging Face
@@ -62,8 +64,8 @@ result = model.analyze(text = ["I love this product!", "I hate this product!"], 
 Utilize a specific pre-trained model from Hugging Face:
 
 ```python
-model = tp.initialize(task="emotion", model_name="AnkitAI/reviews-roberta-base-sentiment-analysis", source="huggingface")
-result = model.analyze(text = "I love this product!", return_probs=True)
+model = initialize("emotion", model_name="AnkitAI/reviews-roberta-base-sentiment-analysis", source="huggingface")
+result = model.analyze(text)
 ```
 
 ### Using Models from Local Directory
@@ -71,8 +73,8 @@ result = model.analyze(text = "I love this product!", return_probs=True)
 Load and use a model from a local directory:
 
 ```python
-model = tp.initialize(task="ner", model_name="./results", source="local")
-result = model.analyze(text="I love this product!", return_probs=True)
+model = initialize("ner", model_name="./results", source="local")
+result = model.analyze(text, return_probs=True) # if return_probs = True, It returns labels, score and probabilities
 ```
 
 ### Training a Model
@@ -80,7 +82,7 @@ result = model.analyze(text="I love this product!", return_probs=True)
 Train a model for sequence classification:
 
 ```python
-import textpredict as tp
+from textpredict import SequenceClassificationTrainer
 from datasets import load_dataset
 
 # Load dataset
@@ -88,10 +90,8 @@ train_data = load_dataset("imdb", split="train")
 val_data = load_dataset("imdb", split="test")
 
 # Initialize and train the model
-trainer = tp.SequenceClassificationTrainer(model_name="bert-base-uncased", output_dir="./results", train_dataset=train_data, val_dataset=val_data)
+trainer = SequenceClassificationTrainer(model_name="bert-base-uncased", output_dir="./results", train_dataset=train_data, val_dataset=val_data)
 trainer.train()
-
-# Save and evaluate the trained model
 trainer.save()
 metrics = trainer.evaluate(test_dataset=val_data)
 ```
@@ -103,10 +103,13 @@ For detailed examples, refer to the `examples` directory.
 Understand model predictions with feature importance:
 
 ```python
-text = "I love this product!"
-explainer = tp.Explainability(model_name="bert-base-uncased", task="sentiment", device="cpu")
-importance = explainer.feature_importance(text=text)
+from textpredict import Explainability
+
+explainer = Explainability(model_name="bert-base-uncased", task="sentiment", device="cpu")
+importance = explainer.feature_importance(text)
 ```
+
+and many more.... check documentations
 
 ## Documentation
 

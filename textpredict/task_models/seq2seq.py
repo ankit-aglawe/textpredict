@@ -1,13 +1,28 @@
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
+from textpredict.logger import get_logger
 from textpredict.task_models.base import BaseModel
+
+logger = get_logger(__name__)
 
 
 class Seq2seqModel(BaseModel):
-    def __init__(self, model_name: str, model=None, tokenizer=None):
-        super().__init__(model_name, "seq2seq", model, tokenizer)
+    def __init__(self, model_name: str, model=None, tokenizer=None, device=None):
+        super().__init__(model_name, "seq2seq", model, tokenizer, device)
+
+        self.device = device
         if not model or not tokenizer:
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            try:
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+                self.model.to(self.device)
+
+            except Exception as e:
+                logger.warning(f"Failed to load model on {self.device}: {e}")
+                logger.info("Falling back to CPU.")
+                self.device = "cpu"
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+                self.model.to(self.device)
+
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def predict(self, texts, return_probs=False):

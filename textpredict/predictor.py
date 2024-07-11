@@ -2,6 +2,7 @@ import logging
 from functools import wraps
 
 from textpredict.config import model_config, supported_tasks
+from textpredict.device_manager import DeviceManager
 from textpredict.logger import get_logger
 from textpredict.model_loader import load_model, load_model_from_directory
 from textpredict.utils.data_preprocessing import clean_text
@@ -23,17 +24,18 @@ def validate_task(func):
 
 
 class TextPredict:
-    def __init__(self, device="cpu"):
+    def __init__(self, device=None):
         self.supported_tasks = supported_tasks
         self.models = {}
         self.current_task = None
-        self.device = device
+        self.device = device or DeviceManager.get_device()
+
         logger.info(
             "TextPredict initialized with supported tasks: "
             + ", ".join(self.supported_tasks)
         )
 
-    def initialize(self, task, device="cpu", model_name=None, source="huggingface"):
+    def initialize(self, task, model_name=None, source="huggingface"):
         """
         Initialize the model for a specific task.
 
@@ -48,7 +50,6 @@ class TextPredict:
                 raise ValueError(f"Unsupported task '{task}'")
 
             self.current_task = task
-            self.device = device
 
             # if os.path.isdir(model_name):
             #     self.models[task] = load_model_from_directory(model_name, source)
@@ -77,12 +78,14 @@ class TextPredict:
 
                 if source == "local":
                     self.models[model_name] = load_model_from_directory(
-                        model_name, self.current_task
+                        model_name, self.current_task, device=self.device
                     )
                 else:
-                    self.models[model_name] = load_model(model_name, self.current_task)
+                    self.models[model_name] = load_model(
+                        model_name, self.current_task, device=self.device
+                    )
 
-                self.models[model_name].model.to(self.device)
+                # self.models[model_name].model.to(self.device)
                 logger.info(
                     f"Model '{model_name}' loaded successfully on {self.device}."
                 )

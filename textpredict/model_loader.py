@@ -21,7 +21,7 @@ MODEL_CLASS_MAPPING = {
 }
 
 
-def load_model(model_name: str, task: str):
+def load_model(model_name: str, task: str, device):
     """
     Load a model from HuggingFace.
 
@@ -35,15 +35,14 @@ def load_model(model_name: str, task: str):
     try:
         logger.info(f"Loading model {model_name} for task {task}")
         model_class = MODEL_CLASS_MAPPING.get(task)
-        print("model_class", model_class)
         if not model_class:
             raise ValueError(f"No model class found for task {task}")
-        return model_class(model_name)
+        return model_class(model_name, device)
     except Exception as e:
         log_and_raise(RuntimeError, f"Error loading model for task {task}: {e}")
 
 
-def load_model_from_directory(model_dir: str, task: str):
+def load_model_from_directory(model_dir: str, task: str, device):
     """
     Load a model from a local directory.
 
@@ -56,11 +55,24 @@ def load_model_from_directory(model_dir: str, task: str):
     """
     try:
         logger.info(f"Loading model from directory {model_dir} for task {task}")
-        model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+        try:
+            model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+            model.to(device)
+
+        except Exception as e:
+            logger.warning(f"Failed to load model on {device}: {e}")
+            logger.info("Falling back to CPU.")
+            device = "cpu"
+            model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+            model.to(device)
+
         tokenizer = AutoTokenizer.from_pretrained(model_dir)
+
         model_class = MODEL_CLASS_MAPPING.get(task)
+
         if not model_class:
             raise ValueError(f"No model class found for task {task}")
+
         return model_class(model_name=model_dir, model=model, tokenizer=tokenizer)
     except Exception as e:
         log_and_raise(

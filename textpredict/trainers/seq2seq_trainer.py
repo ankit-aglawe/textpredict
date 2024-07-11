@@ -1,20 +1,16 @@
-import logging
-
 from transformers import AutoModelForSeq2SeqLM
 
+from textpredict import logger
 from textpredict.evaluators import Seq2seqEvaluator
 
 from .base_trainer import BaseTrainer
 
-logger = logging.getLogger(__name__)
-
 
 class Seq2seqTrainer(BaseTrainer):
-    def __init__(self, model_name, output_dir, config=None, device="cpu"):
+    def __init__(self, model_name, output_dir, config=None, device=None):
         super().__init__(model_name, output_dir, config, device)
-        logger.info(f"Initialized Seq2SeqTrainer with model {model_name} on {device}")
 
-    def load_model(self, model_name):
+    def load_model(self, model_name, device):
         """
         Load the model for sequence-to-sequence tasks.
 
@@ -24,7 +20,31 @@ class Seq2seqTrainer(BaseTrainer):
         Returns:
             AutoModelForSeq2SeqLM: The loaded model.
         """
-        return AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        device = device
+
+        try:
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            model.to(device)
+
+            logger.info(
+                f"Initialized Seq2SeqTrainer with model {model_name} on {device}"
+            )
+
+            return model
+
+        except Exception as e:
+
+            logger.warning(f"Failed to load model on {self.device}: {e}")
+            logger.info("Falling back to CPU.")
+            self.device = "cpu"
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            model.to(device)
+
+            logger.info(
+                f"Initialized Seq2SeqTrainer with model {model_name} on {device}"
+            )
+
+            return model
 
     def evaluate(self, test_dataset, evaluation_config=None):
         """

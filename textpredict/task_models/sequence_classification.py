@@ -2,8 +2,10 @@ from textpredict.task_models.base import BaseModel
 
 
 class SequenceClassificationModel(BaseModel):
-    def __init__(self, model_name: str, model=None, tokenizer=None):
-        super().__init__(model_name, "sequence_classification", model, tokenizer)
+    def __init__(self, model_name: str, model=None, tokenizer=None, device=None):
+        super().__init__(
+            model_name, "sequence_classification", model, tokenizer, device
+        )
 
     def predict(self, texts, return_probs):
         inputs = self.tokenizer(

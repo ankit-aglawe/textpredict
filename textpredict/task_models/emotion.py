@@ -4,8 +4,8 @@ from textpredict.task_models.base import BaseModel
 
 
 class EmotionModel(BaseModel):
-    def __init__(self, model_name: str, model=None, tokenizer=None):
-        super().__init__(model_name, "emotion", model, tokenizer)
+    def __init__(self, model_name: str, model=None, tokenizer=None, device=None):
+        super().__init__(model_name, "emotion", model, tokenizer, device)
 
     def predict(self, texts, return_probs):
         inputs = self.tokenizer(

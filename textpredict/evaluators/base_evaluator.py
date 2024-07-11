@@ -1,25 +1,27 @@
-import logging
-
 from transformers import AutoTokenizer, Trainer, TrainingArguments
 
 from textpredict.config import default_evaluation_config
+from textpredict.device_manager import DeviceManager
 from textpredict.evaluation import compute_metrics, log_metrics
+from textpredict.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BaseEvaluator:
     def __init__(
-        self, model_name=None, config=None, device="cpu", evaluation_config=None
+        self, model_name=None, config=None, device=None, evaluation_config=None
     ):
         self.model_name = model_name
-        self.device = device
+
+        self.device = device or DeviceManager.get_device()
+
         self.config = config or {}
         self.evaluation_config = {
             **default_evaluation_config,
             **(evaluation_config or {}),
         }
-        self.model = self.load_model(model_name)
+        self.model = self.load_model(model_name, self.device)
         self.tokenizer = self.load_tokenizer(model_name)
         self.model.to(device)
         self.data = None  # To be set directly by the user

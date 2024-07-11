@@ -1,6 +1,9 @@
+from textpredict.logger import get_logger
+
 from .benchmarking import Benchmarking
 from .config import load_config, save_config
 from .datasets import load_data
+from .device_manager import DeviceManager
 from .evaluators import (
     Seq2seqEvaluator,
     SequenceClassificationEvaluator,
@@ -37,7 +40,11 @@ __all__ = [
 ]
 
 
-def initialize(task, device="cpu", model_name=None, source="huggingface"):
+def initialize(task, model_name=None, source="huggingface", device=None):
     predictor = TextPredict(device=device)
     predictor.initialize(task=task, model_name=model_name, source=source)
     return predictor
+
+
+def set_device(device):
+    DeviceManager.set_device(device)

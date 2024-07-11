@@ -1,7 +1,8 @@
-import logging
 import re
 
-logger = logging.getLogger(__name__)
+from textpredict.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def clean_text(text: str) -> str:

@@ -1,9 +1,10 @@
 import itertools
-import logging
 
 import matplotlib.pyplot as plt
 
-logger = logging.getLogger(__name__)
+from textpredict.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class Visualization:

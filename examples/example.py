@@ -1,6 +1,16 @@
 from datasets import load_dataset
 
-import textpredict as tp
+from textpredict import (
+    Benchmarking,
+    Explainability,
+    ModelComparison,
+    SequenceClassificationEvaluator,
+    SequenceClassificationTrainer,
+    Visualization,
+    clean_text,
+    initialize,
+    load_data,
+)
 
 
 # Function to test simple prediction using default model
@@ -8,20 +18,20 @@ def text_simple_prediction():
     # sentiment
     texts = ["I love this product!", "I love this product!"]
     text = "I love this product!"
-    model = tp.initialize(task="sentiment")
+    model = initialize(task="sentiment")
     result = model.analyze(texts, return_probs=False)
     print(f"Simple Prediction Result: {result}")
 
     # # emotion
     text = ["I am happy today", "I am happy today"]
-    model = tp.initialize(task="emotion")
+    model = initialize(task="emotion")
     result = model.analyze(text, return_probs=False)
     print(f"Emotion found : {result}")
 
     # zeroshot
     texts = ["I am happy today", "I am happy today"]
     text = "I am happy today"
-    model = tp.initialize(task="zeroshot")
+    model = initialize(task="zeroshot")
 
     result = model.analyze(
         text, candidate_labels=["negative", "positive"], return_probs=True
@@ -32,7 +42,7 @@ def text_simple_prediction():
     texts = ["I am in London, united kingdom", "I am in Manchester, united kingdom"]
     text = "I am in Manchester, united kingdom"
 
-    model = tp.initialize(task="ner")
+    model = initialize(task="ner")
     result = model.analyze(text, return_probs=True)
     print(f"NER found : {result}")
 
@@ -41,7 +51,7 @@ def text_simple_prediction():
 def text_hf_prediction():
     text = "I love this product!"
 
-    model = tp.initialize(
+    model = initialize(
         task="sentiment",
         device="cpu",
         model_name="AnkitAI/reviews-roberta-base-sentiment-analysis",
@@ -54,7 +64,7 @@ def text_hf_prediction():
 
     # # emotion
     text = ["I am happy today", "I am happy today"]
-    model = tp.initialize(
+    model = initialize(
         task="emotion", model_name="AnkitAI/deberta-v3-small-base-emotions-classifier"
     )
     result = model.analyze(text, return_probs=False)
@@ -63,7 +73,7 @@ def text_hf_prediction():
     # zeroshot
     texts = ["I am happy today", "I am happy today"]
     text = "I am happy today"
-    model = tp.initialize(task="zeroshot", source="huggingface")
+    model = initialize(task="zeroshot", source="huggingface")
 
     result = model.analyze(
         text, candidate_labels=["negative", "positive"], return_probs=True
@@ -74,7 +84,7 @@ def text_hf_prediction():
     texts = ["I am in London, united kingdom", "I am in Manchester, united kingdom"]
     text = "I am in Manchester, united kingdom"
 
-    model = tp.initialize(task="ner", source="huggingface")
+    model = initialize(task="ner", source="huggingface")
     result = model.analyze(text, return_probs=True)
     print(f"NER found : {result}")
 
@@ -85,8 +95,8 @@ def train_sequence_classification():
     raw_train_dataset = load_dataset("imdb", split="train[:10]")
     raw_validation_dataset = load_dataset("imdb", split="test[:10]")
 
-    tokenized_train_dataset = tp.load_data(dataset=raw_train_dataset, splits=["train"])
-    tokenized_validation_dataset = tp.load_data(
+    tokenized_train_dataset = load_data(dataset=raw_train_dataset, splits=["train"])
+    tokenized_validation_dataset = load_data(
         dataset=raw_validation_dataset, splits=["test"]
     )
 
@@ -98,7 +108,7 @@ def train_sequence_classification():
         "per_device_train_batch_size": 2,
     }
 
-    trainer = tp.SequenceClassificationTrainer(
+    trainer = SequenceClassificationTrainer(
         model_name="bert-base-uncased",
         output_dir="./results_new",
         device="cpu",
@@ -118,7 +128,7 @@ def train_sequence_classification():
     evaluate = trainer.evaluate(test_dataset=val_dataset)
     print(f"Evaluation Metrics: {evaluate}")
 
-    model = tp.initialize(model_name="./results_new", task="sequence_classification")
+    model = initialize(model_name="./results_new", task="sequence_classification")
 
     text = "its a good product"
 
@@ -132,14 +142,14 @@ def evaluate_sequence_classification():
     # Load and preprocess the dataset
     raw_test_dataset = load_dataset("imdb", split="test[:10]")
 
-    tokenized_test_dataset = tp.load_data(dataset=raw_test_dataset, splits=["test"])
+    tokenized_test_dataset = load_data(dataset=raw_test_dataset, splits=["test"])
     test_dataset = tokenized_test_dataset["test"]
 
     evaluation_config = {
         "per_device_eval_batch_size": 2,
     }
 
-    evaluator = tp.SequenceClassificationEvaluator(
+    evaluator = SequenceClassificationEvaluator(
         model_name="bert-base-uncased",
         device="cpu",
         evaluation_config=evaluation_config,
@@ -155,7 +165,7 @@ def evaluate_sequence_classification():
 
 # Function to benchmark a model
 def benchmark_model():
-    benchmarker = tp.Benchmarking(model_name="bert-base-uncased", device="cpu")
+    benchmarker = Benchmarking(model_name="bert-base-uncased", device="cpu")
     dataset = load_dataset("imdb", split="test[:10]")
     dataset = dataset.map(
         lambda x: benchmarker.tokenizer(
@@ -171,7 +181,7 @@ def benchmark_model():
 # Function to visualize metrics
 def visualize_metrics():
     metrics = {"accuracy": [0.8, 0.85, 0.9], "loss": [0.6, 0.4, 0.2]}
-    viz = tp.Visualization()
+    viz = Visualization()
     viz.plot_metrics(metrics)
 
 
@@ -179,10 +189,10 @@ def visualize_metrics():
 def compare_models():
     raw_test_dataset = load_dataset("imdb", split="test[:10]")
 
-    tokenized_test_dataset = tp.load_data(dataset=raw_test_dataset, splits=["test"])
+    tokenized_test_dataset = load_data(dataset=raw_test_dataset, splits=["test"])
     test_dataset = tokenized_test_dataset["test"]
 
-    comparison = tp.ModelComparison(
+    comparison = ModelComparison(
         models=["bert-base-uncased", "roberta-base"],
         dataset=test_dataset,
         task="sentiment",
@@ -194,7 +204,7 @@ def compare_models():
 # Function to explain a prediction
 def explain_prediction():
     text = "I love this product!"
-    explainer = tp.Explainability(
+    explainer = Explainability(
         model_name="bert-base-uncased", task="sentiment", device="cpu"
     )
     importance = explainer.feature_importance(text=text)
@@ -204,7 +214,7 @@ def explain_prediction():
 # Function to clean text using utility functions
 def clean_text_example():
     raw_text = "This is some raw text! Check http://example.com"
-    cleaned_text = tp.clean_text(raw_text)
+    cleaned_text = clean_text(raw_text)
     print(f"Cleaned Text: {cleaned_text}")
 
 
@@ -213,29 +223,29 @@ def main():
     # print("Running Simple Prediction...")
     # text_simple_prediction()
 
-    # print("\nRunning Hugging Face Prediction...")
-    # text_hf_prediction()
+    print("\nRunning Hugging Face Prediction...")
+    text_hf_prediction()
 
-    # print("\nTraining Sequence Classification Model...")
-    # train_sequence_classification()
+    print("\nTraining Sequence Classification Model...")
+    train_sequence_classification()
 
-    # print("\nEvaluating Sequence Classification Model...")
-    # evaluate_sequence_classification()
+    print("\nEvaluating Sequence Classification Model...")
+    evaluate_sequence_classification()
 
-    # print("\nBenchmarking Model...")
-    # benchmark_model()
+    print("\nBenchmarking Model...")
+    benchmark_model()
 
-    print("\nVisualizing Metrics...")
-    visualize_metrics()
+    # print("\nVisualizing Metrics...")
+    # visualize_metrics()
 
-    print("\nComparing Models...")
-    compare_models()
+    # print("\nComparing Models...")
+    # compare_models()
 
-    print("\nExplaining Prediction...")
-    explain_prediction()
+    # print("\nExplaining Prediction...")
+    # explain_prediction()
 
-    print("\nCleaning Text Example...")
-    clean_text_example()
+    # print("\nCleaning Text Example...")
+    # clean_text_example()
 
 
 if __name__ == "__main__":

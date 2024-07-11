@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 
@@ -6,18 +5,20 @@ import psutil
 import torch
 from transformers import AutoTokenizer, Trainer, TrainingArguments
 
+from textpredict.device_manager import DeviceManager
 from textpredict.evaluation import compute_metrics
+from textpredict.logger import get_logger
 from textpredict.model_loader import load_model
 from textpredict.utils.error_handling import ModelError, log_and_raise
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Benchmarking:
-    def __init__(self, model_name, device="cpu"):
+    def __init__(self, model_name, device=None):
         self.model_name = model_name
-        self.device = device
-        self.model = load_model(model_name, task="sentiment")
+        self.device = device or DeviceManager.get_device()
+        self.model = load_model(model_name, task="sentiment", device=self.device)
         self.tokenizer = self.load_tokenizer(model_name)
         logger.info(f"Benchmarking initialized with model {model_name} on {device}")
 

@@ -1,8 +1,8 @@
-import logging
-
 from transformers import pipeline
 
-logger = logging.getLogger(__name__)
+from textpredict.logger import get_logger
+
+logger = get_logger(__name__)
 
 TASK_PIPELINE_MAPPING = {
     "sentiment": "sentiment-analysis",

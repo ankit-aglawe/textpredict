@@ -1,22 +1,22 @@
-import logging
-
 from transformers import AutoModelForTokenClassification
 
 from textpredict.evaluators import TokenClassificationEvaluator
+from textpredict.logger import get_logger
 
 from .base_trainer import BaseTrainer
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TokenClassificationTrainer(BaseTrainer):
-    def __init__(self, model_name, output_dir, config=None, device="cpu"):
+    def __init__(self, model_name, output_dir, config=None, device=None):
+
         super().__init__(model_name, output_dir, config, device)
         logger.info(
             f"Initialized TokenClassificationTrainer with model {model_name} on {device}"
         )
 
-    def load_model(self, model_name):
+    def load_model(self, model_name, device):
         """
         Load the model for token classification.
 
@@ -26,7 +26,26 @@ class TokenClassificationTrainer(BaseTrainer):
         Returns:
             AutoModelForTokenClassification: The loaded model.
         """
-        return AutoModelForTokenClassification.from_pretrained(model_name)
+        device = device
+
+        try:
+            model = AutoModelForTokenClassification.from_pretrained(model_name)
+            model.to(device)
+            return model
+
+        except Exception as e:
+
+            logger.warning(f"Failed to load model on {self.device}: {e}")
+            logger.info("Falling back to CPU.")
+            self.device = "cpu"
+            model = AutoModelForTokenClassification.from_pretrained(model_name)
+            model.to(device)
+
+            logger.info(
+                f"Initialized Seq2SeqTrainer with model {model_name} on {device}"
+            )
+
+            return model
 
     def evaluate(self, test_dataset, evaluation_config=None):
         """

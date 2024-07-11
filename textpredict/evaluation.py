@@ -1,10 +1,13 @@
 # evaluation.py
-import logging
 
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from transformers import EvalPrediction
 
-logger = logging.getLogger(__name__)
+from textpredict.logger import get_logger
+
+# from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from textpredict.utils.metrics import accuracy_score, precision_recall_fscore_support
+
+logger = get_logger(__name__)
 
 
 def compute_metrics(p: EvalPrediction):
